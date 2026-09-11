@@ -14,6 +14,7 @@
 alter table tasks add column if not exists start_time timestamptz;
 alter table tasks add column if not exists end_time timestamptz;
 
+alter table tasks drop constraint if exists tasks_time_order_chk;
 alter table tasks add constraint tasks_time_order_chk
   check (start_time is null or end_time is null or end_time > start_time);
 
@@ -104,6 +105,7 @@ on conflict (category) do update set stat_column = excluded.stat_column;
 
 -- Дозволяємо читання мапи авторизованим клієнтам (не секрет, просто конфіг).
 alter table category_stat_map enable row level security;
+drop policy if exists "category_stat_map_read_all" on category_stat_map;
 create policy "category_stat_map_read_all" on category_stat_map
   for select using (true);
 
