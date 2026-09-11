@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html lang="uk" id="html-root">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Плин дня</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#3e7c74">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="/idb-queue.js"></script>
+<style>
+  :root{
+    --bg:#f4f5f2; --card:#ffffff; --ink:#1f2430; --ink-dim:#666c7a; --ink-faint:#9aa0ac;
+    --line:#e4e5e0; --teal:#3e7c74; --teal-dim:#e6efed; --coral:#c4633f; --coral-dim:#f5e6de;
+    --blue:#4a6fa5;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-serif;}
+  .wrap{max-width:960px;margin:0 auto;padding:32px 18px 60px;}
+  h1{font-family:'Fraunces',serif;font-weight:600;font-size:30px;margin:0 0 2px;letter-spacing:-0.01em;}
+  h1 em{font-style:italic;color:var(--teal);}
+  .sub{color:var(--ink-dim);font-size:14px;margin:0 0 28px;max-width:56ch;line-height:1.5;}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .lang-toggle{display:inline-flex;border:1px solid var(--line);border-radius:100px;overflow:hidden;}
+  .lang-toggle button{border:none;border-radius:0;padding:5px 11px;font-size:12px;background:#fff;}
+  .lang-toggle button.active{background:var(--teal);color:#fff;}
+  .grid{display:grid;grid-template-columns:1.3fr 1fr;gap:18px;}
+  @media (max-width:760px){.grid{grid-template-columns:1fr;}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;}
+  .card + .card{margin-top:18px;}
+  .card h2{font-family:'Fraunces',serif;font-weight:600;font-size:17px;margin:0 0 14px;}
+  .day-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:10px;}
+  .start-time{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-dim);}
+  .start-time input{border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-size:13px;}
+  .projected{font-size:12.5px;color:var(--ink-faint);margin:0 0 16px;}
+  .projected b{color:var(--ink-dim);font-weight:500;}
+  .block{border-left:3px solid var(--line);padding:10px 0 10px 14px;margin-bottom:4px;}
+  .block.active{border-left-color:var(--teal);background:var(--teal-dim);border-radius:0 10px 10px 0;}
+  .block.paused{border-left-color:var(--ink-faint);background:#f6f6f4;border-radius:0 10px 10px 0;}
+  .block.done{opacity:0.55;}
+  .block.overrun{border-left-color:var(--coral);}
+  .block-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+  .block-name-row{display:flex;align-items:center;gap:7px;flex:1;min-width:0;}
+  .cat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .block-name{font-weight:500;font-size:14.5px;cursor:pointer;}
+  .block-time{font-size:12px;color:var(--ink-faint);white-space:nowrap;}
+  .block-meta{font-size:12px;color:var(--ink-dim);margin-top:2px;}
+  .block-actions{margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .reorder{display:flex;flex-direction:column;gap:1px;}
+  .reorder button{padding:1px 5px;font-size:10px;line-height:1;border-radius:4px;}
+  .edit-row{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;}
+  .edit-row input[type=text]{flex:1;min-width:110px;}
+  .edit-row input[type=number]{width:64px;}
+  .edit-row select{border:1px solid var(--line);border-radius:8px;padding:9px 8px;font-size:13px;}
+  button{cursor:pointer;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;
+    border-radius:8px;border:1px solid var(--line);padding:7px 13px;background:#fff;color:var(--ink);}
+  button:hover{border-color:var(--teal);}
+  button.primary{background:var(--teal);border-color:var(--teal);color:#fff;}
+  button.primary:hover{background:#356a63;}
+  button.ghost{background:transparent;border-color:transparent;color:var(--ink-dim);padding:7px 4px;}
+  button.small{padding:5px 10px;font-size:12px;}
+  button.preset{padding:6px 10px;font-size:12px;}
+  button.preset.active-preset{background:var(--teal-dim);border-color:var(--teal);color:var(--teal);}
+  button:disabled{opacity:0.4;cursor:default;}
+  .add-row{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center;}
+  .add-row input[type=text]{flex:1;min-width:140px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:14px;}
+  .add-row input[type=number]{width:70px;border:1px solid var(--line);border-radius:8px;padding:9px 8px;font-size:14px;}
+  .add-row select{border:1px solid var(--line);border-radius:8px;padding:9px 8px;font-size:14px;color:var(--ink);background:#fff;}
+  .presets{display:flex;gap:6px;margin-top:8px;}
+  .empty{color:var(--ink-faint);font-size:13.5px;padding:10px 0;}
+  .lock-note{font-size:12.5px;color:var(--coral);background:var(--coral-dim);border-radius:8px;padding:8px 10px;margin-top:10px;}
+  .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .stat{border-top:1px solid var(--line);padding-top:8px;}
+  .stat .k{font-size:11.5px;color:var(--ink-faint);}
+  .stat .v{font-size:17px;font-family:'Fraunces',serif;font-weight:600;}
+  .weekly-wrap{position:relative;}
+  .weekly-blur{filter:blur(5px);pointer-events:none;user-select:none;}
+  .upgrade-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:20px;}
+  .upgrade-overlay p{font-size:13px;color:var(--ink-dim);margin:0;max-width:32ch;}
+  .bars{display:flex;align-items:flex-end;gap:8px;height:110px;}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;}
+  .bar-track{width:100%;height:80px;display:flex;align-items:flex-end;background:var(--line);border-radius:4px;overflow:hidden;}
+  .bar-fill{width:100%;background:var(--teal);border-radius:4px 4px 0 0;}
+  .bar-label{font-size:10.5px;color:var(--ink-faint);}
+  .history-item{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1px solid var(--line);font-size:13px;}
+  .history-item:first-child{border-top:none;}
+  .plan-badge, .streak-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-dim);
+    border:1px solid var(--line);border-radius:100px;padding:4px 10px;white-space:nowrap;}
+  .plan-badge.pro{color:var(--teal);border-color:var(--teal);background:var(--teal-dim);}
+  .streak-badge{color:var(--coral);border-color:var(--coral);background:var(--coral-dim);}
+  .offline-badge{color:var(--coral);border-color:var(--coral);background:var(--coral-dim);}
+  .pricing{display:flex;gap:12px;margin-top:14px;flex-wrap:wrap;}
+  .price-card{flex:1;min-width:150px;border:1px solid var(--line);border-radius:12px;padding:14px;}
+  .price-card.highlight{border-color:var(--teal);background:var(--teal-dim);}
+  .price-card .p{font-family:'Fraunces',serif;font-size:20px;font-weight:600;margin:6px 0;}
+  .price-card ul{margin:8px 0 0;padding-left:16px;font-size:12.5px;color:var(--ink-dim);line-height:1.6;}
+  .template-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--line);font-size:13.5px;gap:10px;}
+  .template-item:first-child{border-top:none;}
+  .template-item .meta{font-size:12px;color:var(--ink-faint);}
+  .template-actions{display:flex;gap:6px;flex-shrink:0;}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+    background:var(--ink);color:#fff;border-radius:10px;padding:10px 16px;font-size:13px;
+    opacity:0;transition:opacity .25s ease;pointer-events:none;z-index:20;}
+  .toast.show{opacity:1;}
+  .toast.toast-warning{background:#8a5a1f;}
+  .toast.toast-error{background:#8a2f2f;}
+
+  /* Легка відбивка при відкоті оптимістичного оновлення (rollback). */
+  @keyframes shakeError{
+    0%,100%{ transform:translateX(0); }
+    20%{ transform:translateX(-4px); }
+    40%{ transform:translateX(4px); }
+    60%{ transform:translateX(-3px); }
+    80%{ transform:translateX(3px); }
+  }
+  @media (prefers-reduced-motion: no-preference){
+    .shake-error{ animation: shakeError 320ms ease-in-out; border-left-color: var(--coral) !important; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .shake-error{ border-left-color: var(--coral) !important; }
+  }
+  .email-row{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+  .email-row input{flex:1;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:14px;}
+  .gate{position:fixed;inset:0;background:var(--bg);z-index:40;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .gate-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:28px;max-width:380px;width:100%;text-align:center;}
+  .gate-card h1{font-size:24px;}
+  .userbar{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-dim);}
+
+  .audio-controls{display:flex;align-items:center;gap:10px;margin:0 0 14px;}
+  .audio-controls input[type=range]{width:100px;accent-color:var(--teal);}
+  .audio-pill{font-size:11px;color:var(--teal);background:var(--teal-dim);border-radius:100px;padding:2px 8px;display:inline-flex;align-items:center;gap:4px;margin-top:4px;}
+  .radar-fill{ fill: rgba(62,124,116,0.25); fill: color-mix(in srgb, var(--teal) 25%, transparent); stroke: var(--teal); stroke-width: 2; }
+  .radar-label{ font-size: 9px; fill: var(--ink-dim); font-family: 'Inter', sans-serif; }
+  .radar-wrap{ display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .xp-bar-track{ width:100%; height:8px; background:var(--line); border-radius:4px; overflow:hidden; }
+  .xp-bar-fill{ height:100%; background:var(--teal); border-radius:4px; transition: width 0.5s ease-out; }
+  .special-heading-row{ display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+  .special-heading-row h2{ margin:0; }
+  .special-badge{ width:32px; height:32px; border-radius:50%; object-fit:cover; flex-shrink:0; box-shadow:0 0 0 1px var(--line); }
+  .special-stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(76px,1fr)); gap:8px; width:100%; margin-top:4px; }
+  .stat-chip{ display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 4px 10px; border:1px solid var(--line); border-radius:12px; background:var(--card); }
+  .stat-chip img{ width:44px; height:44px; border-radius:50%; object-fit:cover; }
+  .stat-chip .stat-letter{ font-size:10px; font-weight:600; letter-spacing:0.04em; color:var(--teal); }
+  .stat-chip .stat-name{ font-size:10.5px; color:var(--ink-dim); text-align:center; line-height:1.2; }
+  .stat-chip .stat-val{ font-family:'Fraunces',serif; font-weight:600; font-size:16px; }
+
+
+  /* Завдання 4: skeleton-заглушка на час генерації LLM-звіту. */
+  .skeleton-line{ height:12px; border-radius:4px; margin-bottom:8px;
+    background: linear-gradient(90deg, var(--line) 25%, var(--card) 50%, var(--line) 75%);
+    background-size: 200% 100%; }
+  .skeleton-line:last-child{ width:70%; }
+  @media (prefers-reduced-motion: no-preference){
+    .skeleton-line{ animation: skeletonShimmer 1.3s ease-in-out infinite; }
+    @keyframes skeletonShimmer{ 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
+  }
+  .report-error{ color: var(--coral); font-size: 13px; }
+  .report-error .retry-hint{ display:block; color:var(--ink-faint); font-size:11.5px; margin-top:4px; }
+
+
+  /* ---------- Теми оформлення ---------- */
+  .theme-toggle{display:inline-flex;border:1px solid var(--line);border-radius:100px;overflow:hidden;}
+  .theme-toggle button{border:none;border-radius:0;padding:5px 10px;font-size:11.5px;background:#fff;color:var(--ink);}
+  .theme-toggle button.active{background:var(--teal);color:#fff;}
+
+  [data-theme="techno"]{
+    --bg:#0a0118; --card:#150a26; --ink:#e9dcff; --ink-dim:#a48fd1; --ink-faint:#6d5799;
+    --line:#3a1f5c; --teal:#00f0ff; --teal-dim:rgba(0,240,255,0.14);
+    --coral:#ff2e88; --coral-dim:rgba(255,46,136,0.14); --blue:#a56bff;
+  }
+  [data-theme="techno"] body, [data-theme="techno"]{ background:var(--bg); }
+  [data-theme="techno"] .card{ box-shadow:0 0 0 1px rgba(0,240,255,0.08), 0 0 24px rgba(123,47,247,0.10); }
+  [data-theme="techno"] button.primary{ box-shadow:0 0 10px rgba(0,240,255,0.35); }
+
+  [data-theme="steampunk"]{
+    --bg:#241a10; --card:#332415; --ink:#f0dfc0; --ink-dim:#c9a876; --ink-faint:#8a6f4a;
+    --line:#5c4530; --teal:#b8860b; --teal-dim:rgba(184,134,11,0.16);
+    --coral:#a85c32; --coral-dim:rgba(168,92,50,0.16); --blue:#7a6a4f;
+  }
+  [data-theme="steampunk"] body, [data-theme="steampunk"]{ background:var(--bg); }
+  [data-theme="steampunk"] .card{ border-width:2px; }
+  [data-theme="steampunk"] h1, [data-theme="steampunk"] h2{ font-family:'Fraunces',serif; }
+
+  @media (prefers-reduced-motion: no-preference){
+    [data-theme="techno"] .glitch-fx{ animation: glitchAnim 180ms steps(2,end); }
+    @keyframes glitchAnim{
+      0%{ transform:translate(0,0); }
+      25%{ transform:translate(-2px,1px); text-shadow:-2px 0 #ff2e88, 2px 0 #00f0ff; }
+      50%{ transform:translate(2px,-1px); text-shadow:2px 0 #ff2e88, -2px 0 #00f0ff; }
+      75%{ transform:translate(-1px,0); text-shadow:none; }
+      100%{ transform:translate(0,0); }
+    }
+  }
+
+  /* ---------- Адаптивність: ПК/планшет ---------- */
+  .side-nav{display:none;}
+  @media (min-width:1300px){
+    .side-nav{
+      display:flex; flex-direction:column; gap:2px;
+      position:fixed; left:28px; top:44px; width:170px;
+    }
+    .side-nav .brand{font-family:'Fraunces',serif;font-weight:600;font-size:15px;color:var(--ink);padding:6px 10px 16px;}
+    .side-nav a{padding:8px 10px;border-radius:8px;color:var(--ink-dim);text-decoration:none;font-size:13px;}
+    .side-nav a:hover{background:var(--teal-dim);color:var(--teal);}
+    .wrap{max-width:1000px;}
+  }
+  @media (min-width:900px){
+    #timeline{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;}
+    #timeline .block{margin-bottom:0;border:1px solid var(--line);border-left-width:3px;border-radius:0 10px 10px 0;padding:12px 14px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="gate" id="auth-gate">
+  <div class="gate-card">
+    <h1 id="gate-title"></h1>
+    <p class="sub" id="gate-sub" style="margin:0 0 16px;"></p>
+    <input type="text" id="auth-email" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:14px;margin-bottom:10px;">
+    <button class="primary" id="btn-send-link" style="width:100%;"></button>
+    <p id="gate-note" class="sub" style="margin:12px 0 0;"></p>
+  </div>
+</div>
+
+<nav class="side-nav" id="side-nav" style="display:none;">
+  <div class="brand">Плин дня</div>
+  <a href="#section-today" id="nav-today"></a>
+  <a href="#section-templates" id="nav-templates"></a>
+  <a href="#section-summary" id="nav-summary"></a>
+  <a href="#section-special" id="nav-special"></a>
+  <a href="#section-weekly" id="nav-weekly"></a>
+  <a href="#section-history" id="nav-history"></a>
+  <a href="#section-report" id="nav-report"></a>
+  <a href="#section-subscription" id="nav-subscription"></a>
+</nav>
+
+<div class="wrap" id="app-root" style="display:none;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+    <div>
+      <h1 id="app-title"></h1>
+      <p class="sub" id="app-tagline"></p>
+    </div>
+    <div class="badges">
+      <span class="streak-badge" id="streak-badge" style="display:none;"></span>
+      <span class="offline-badge" id="offline-badge" style="display:none;"></span>
+      <span class="plan-badge" id="plan-badge"></span>
+      <span class="lang-toggle"><button id="lang-uk" data-lang="uk">UA</button><button id="lang-en" data-lang="en">EN</button></span>
+      <span class="theme-toggle">
+        <button id="theme-classic" data-theme="">◐</button>
+        <button id="theme-techno" data-theme="techno">⚡</button>
+        <button id="theme-steampunk" data-theme="steampunk">⚙</button>
+      </span>
+    </div>
+  </div>
+  <div class="userbar" style="margin-bottom:18px;">
+    <span id="user-email-display"></span>
+    <button class="ghost small" id="btn-logout"></button>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="card" id="section-today">
+        <div class="day-header">
+          <h2 id="today-heading" style="margin:0;"></h2>
+          <div class="start-time"><span id="day-start-label"></span> <input type="time" id="day-start" value="09:00"></div>
+        </div>
+        <div class="projected" id="projected-end"></div>
+        <div class="audio-controls">
+          <button class="ghost small" id="btn-audio-toggle"></button>
+          <input type="range" id="audio-volume" min="0" max="30" value="8" style="display:none;">
+        </div>
+        <div id="timeline"></div>
+        <div class="add-row">
+          <input type="text" id="task-name">
+          <select id="task-category">
+            <option value="work"></option><option value="personal"></option><option value="health"></option><option value="other" selected></option>
+          </select>
+          <input type="number" id="task-min" min="5" step="5" value="30">
+          <button class="primary" id="btn-add"></button>
+        </div>
+        <div class="presets">
+          <button type="button" class="preset" data-min="15">15</button>
+          <button type="button" class="preset" data-min="30">30</button>
+          <button type="button" class="preset" data-min="45">45</button>
+          <button type="button" class="preset" data-min="60">60</button>
+        </div>
+        <div id="limit-note"></div>
+      </div>
+
+      <div class="card" id="section-templates">
+        <h2 id="templates-heading"></h2>
+        <div class="add-row" style="margin-top:0;">
+          <input type="text" id="template-name">
+          <button id="btn-save-template"></button>
+        </div>
+        <div id="template-list" style="margin-top:6px;"></div>
+      </div>
+
+      <div class="card" id="section-summary">
+        <h2 id="summary-heading"></h2>
+        <div class="summary-grid" id="day-summary"></div>
+      </div>
+
+      <div class="card" id="section-special">
+        <div class="special-heading-row">
+          <img class="special-badge" src="/special/badge.jpg" width="32" height="32" alt="">
+          <h2 id="special-heading"></h2>
+        </div>
+        <div class="radar-wrap">
+          <div id="special-radar" style="width:100%;max-width:280px;"></div>
+          <div style="width:100%;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--ink-dim);margin-bottom:4px;">
+              <span id="special-level"></span><span id="special-xp"></span>
+            </div>
+            <div class="xp-bar-track"><div class="xp-bar-fill" id="special-xp-fill" style="width:0%;"></div></div>
+          </div>
+          <div id="special-stats" class="special-stats"></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card weekly-wrap" id="section-weekly">
+        <h2 id="weekly-heading"></h2>
+        <div id="weekly-content"></div>
+      </div>
+      <div class="card weekly-wrap" id="section-history">
+        <h2 id="history-heading"></h2>
+        <div id="history-content"></div>
+      </div>
+      <div class="card weekly-wrap" id="section-report">
+        <h2 id="report-heading"></h2>
+        <div id="report-content"></div>
+      </div>
+      <div class="card" id="section-subscription">
+        <h2 id="subscription-heading"></h2>
+        <div class="pricing">
+          <div class="price-card">
+            <div id="free-title"></div><div class="p">0</div><ul id="free-features"></ul>
+          </div>
+          <div class="price-card highlight">
+            <div id="premium-title"></div><div class="p" style="font-size:15px;" id="premium-price"></div><ul id="premium-features"></ul>
+          </div>
+        </div>
+        <div id="billing-banner" class="lock-note" style="display:none;margin-bottom:12px;"></div>
+        <div class="email-row" id="subscribe-row">
+          <select id="user-currency"><option value="uah">₴ UAH</option><option value="usd">$ USD</option><option value="eur">€ EUR</option></select>
+          <button class="primary" id="btn-subscribe" style="flex:1;"></button>
+        </div>
+        <div id="subscribe-note" class="sub" style="margin:8px 0 0;"></div>
+        <button class="ghost small" id="btn-manage" style="margin-top:10px;display:none;"></button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const FREE_TASK_LIMIT = 3;
+  const FREE_TEMPLATE_LIMIT = 1;
+  const DAY_MIN = 60000;
+  const STREAK_THRESHOLD = 0.7;
+
+  const SUPABASE_URL = '__SUPABASE_URL__';
+  const SUPABASE_ANON_KEY = '__SUPABASE_ANON_KEY__';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ---------- XSS-безпечний вивід ----------
+  // Жодне значення, введене користувачем (назва завдання, шаблону тощо),
+  // не потрапляє в innerHTML без екранування спецсимволів.
+  function esc(str){
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  // ---------- i18n ----------
+  const STR = {
+    uk: {
+      title:'Плин <em>дня</em>', tagline:'Плануй день блоками часу. Якщо якесь завдання займе більше, ніж очікувалось, — решта дня перелаштується сама.',
+      gateTitle:'Плин дня', gateSub:'Увійди через email — надішлемо посилання для входу, пароль не потрібен.',
+      emailInputPlaceholder:'твій email', sendLink:'Надіслати посилання для входу',
+      linkSent:'Перевір пошту — там посилання для входу.', gateError:'Не вдалося надіслати посилання. Перевір email.',
+      logout:'Вийти',
+      freePlan:'Безкоштовний план', premiumPlan:'Преміум',
+      streak:n=>`🔥 ${n} дн. поспіль`,
+      todayHeading:'Сьогодні', dayStartLabel:'Початок дня',
+      taskNamePlaceholder:'Назва завдання', addBtn:'Додати',
+      catWork:'Робота', catPersonal:'Особисте', catHealth:"Здоров'я", catOther:'Інше',
+      minUnit:'хв', presetLabel:n=>`${n} хв`,
+      emptyTimeline:'Ще немає завдань на сьогодні.',
+      startBtn:'Почати', removeBtn:'Прибрати', pauseBtn:'Пауза', resumeBtn:'Продовжити',
+      completeBtn:n=>`Завершити (${n} хв)`, saveBtn:'Зберегти', cancelBtn:'Скасувати', editHint:' ✎',
+      metaPending:n=>`${n} хв`,
+      metaPaused:(e,p)=>`На паузі · накопичено ${e} хв з ${p} хв`,
+      metaDone:(p,a,over)=>`Заплановано ${p} хв · фактично ${a} хв${over?' · довше плану':''}`,
+      projectedEnd:tm=>`Орієнтовний кінець дня: <b>${tm}</b>`,
+      limitNote:n=>`Безкоштовний план — до ${n} завдань на день. Оформи підписку, щоб додавати без обмежень.`,
+      templatesHeading:'Шаблони дня', templateNamePlaceholder:'Назва шаблону', saveTemplateBtn:'Зберегти поточний список',
+      emptyTemplates:'Ще немає збережених шаблонів.', tasksCount:n=>`${n} завдань`, applyBtn:'Застосувати', deleteBtn:'Видалити',
+      summaryHeading:'Підсумок дня', doneLabel:'Завершено', completionLabel:'Виконання', plannedLabel:'Заплановано', actualLabel:'Фактично',
+      weeklyHeading:'За тиждень', weeklyCaption:'Виконання завдань за останні 7 днів', weeklyLocked:'Тижнева аналітика доступна в Преміумі.',
+      historyHeading:'Історія днів', historyEmpty:'Ще немає завершених днів.', historyLocked:'Повна історія — тільки в Преміумі.',
+      historyItem:(d,tt,mn)=>`${d}/${tt} завдань · ${mn} хв`,
+      subscriptionHeading:'Підписка', freeTitle:'Безкоштовно', premiumTitle:'Преміум', premiumPrice:'99 ₴ · $2.99 · €2.79 <span style="font-size:12px;color:var(--ink-dim);">/міс</span>',
+      freeFeatures:['До 3 завдань на день','Автоматичне перелаштування','Підсумок дня'],
+      premiumFeatures:['Без обмежень на завдання','Тижнева аналітика','Історія за весь час','Необмежені шаблони','Синхронізація між пристроями'],
+      subscribeBtn:'Оформити підписку', manageSubBtn:'Керувати підпискою',
+      pastDueBanner:'Останній платіж не пройшов. Онови спосіб оплати, щоб не втратити доступ.',
+      portalFailed:'Не вдалося відкрити кабінет підписки.',
+      redirecting:'Перенаправляю на сторінку оплати…', checkoutFailed:'Не вдалося створити сесію оплати.', connError:"Помилка з'єднання з сервером оплати.",
+      processing:'Обробляємо оплату… (може зайняти кілька секунд)', paidToast:'Оплата пройшла — активуємо Преміум…',
+      activated:'Преміум активовано!', pending:'Оплата обробляється, онови сторінку за хвилину.',
+      confirmCancel:'Скасувати підписку?', canceledToast:'Підписку скасовано.', cancelFailed:'Не вдалося скасувати.',
+      enterTaskName:'Введи назву завдання.', minDuration:'Тривалість — щонайменше 5 хв.', dailyLimit:'Ліміт безкоштовного плану — 3 завдання.',
+      templateNameRequired:'Введи назву шаблону.', needTask:'Спершу додай завдання.', freeTemplateLimit:'Безкоштовний план — 1 шаблон.',
+      templateSaved:'Шаблон збережено.', addedFromTemplate:n=>`Додано ${n} завдань.`, addedBlocked:(a,b)=>`Додано ${a}, ${b} заблоковано лімітом.`,
+      nameEmpty:'Назва порожня.', minInvalid:'Мін. 5 хв.',
+      hardTimeLabel:'Точний час (опційно):', hardTimeBothRequired:'Заповни обидва поля часу або обидва залиш порожніми.',
+      hardTimeOrderInvalid:'Час завершення має бути пізніше початку.',
+      timeConflict:'Час перетинається з іншим завданням.',
+      offlineQueued:n=>`⏳ ${n} офлайн-змін`, syncComplete:n=>`Синхронізовано ${n} змін.`,
+      offlineAuthExpired:'Сесія прострочена — увійди знову, щоб зберегти офлайн-зміни.',
+      audioOn:'Фокус-звук: увімкнено', audioOff:'Фокус-звук: вимкнено',
+      audioIndicator:'🎧 432 Гц · 15 Гц бінауральний ритм',
+      reportHeading:'Аналітичний звіт', reportLocked:'Тижневий AI-звіт доступний у Преміумі.',
+      reportEmpty:'Ще недостатньо даних за останні 7 днів.', reportBtn:'Згенерувати звіт',
+      reportRegenBtn:'Оновити звіт', reportLoading:'Аналізую твій розклад…',
+      reportFailed:'Не вдалося отримати звіт. Спробуй пізніше.', reportGeneratedAt:d=>`Згенеровано: ${d}`,
+      reportRateLimited:'Провайдер LLM тимчасово перевантажений. Спробуй за кілька хвилин.',
+      reportUnavailable:'LLM-провайдер зараз недоступний. Спробуй пізніше.',
+      reportAuthError:'Технічна проблема на сервері зі звітами. Ми вже знаємо.',
+      reportRetryBtn:'Спробувати ще раз',
+      specialHeading:'Характеристики', specialLevel:lv=>`Рівень ${lv}`, specialXp:(xp,need)=>`${xp} / ${need} XP`,
+      statStrength:'Сила', statPerception:'Сприйняття', statEndurance:'Витривалість', statCharisma:'Харизма',
+      statIntelligence:'Інтелект', statAgility:'Спритність', statLuck:'Удача',
+      levelUp:lv=>`🎉 Новий рівень: ${lv}!`
+    },
+    en: {
+      title:'Day <em>Flow</em>', tagline:'Plan your day in time blocks. If a task runs long, the rest of the day reshuffles itself.',
+      gateTitle:'Day Flow', gateSub:"Sign in with email — we'll send a login link, no password needed.",
+      emailInputPlaceholder:'your email', sendLink:'Send login link',
+      linkSent:'Check your inbox for the login link.', gateError:'Could not send the link. Check your email.',
+      logout:'Log out',
+      freePlan:'Free plan', premiumPlan:'Premium',
+      streak:n=>`🔥 ${n}-day streak`,
+      todayHeading:'Today', dayStartLabel:'Day starts at',
+      taskNamePlaceholder:'Task name', addBtn:'Add',
+      catWork:'Work', catPersonal:'Personal', catHealth:'Health', catOther:'Other',
+      minUnit:'min', presetLabel:n=>`${n} min`,
+      emptyTimeline:'No tasks for today yet.',
+      startBtn:'Start', removeBtn:'Remove', pauseBtn:'Pause', resumeBtn:'Resume',
+      completeBtn:n=>`Complete (${n} min)`, saveBtn:'Save', cancelBtn:'Cancel', editHint:' ✎',
+      metaPending:n=>`${n} min`,
+      metaPaused:(e,p)=>`Paused · ${e} of ${p} min logged`,
+      metaDone:(p,a,over)=>`Planned ${p} min · actual ${a} min${over?' · ran over':''}`,
+      projectedEnd:tm=>`Projected day end: <b>${tm}</b>`,
+      limitNote:n=>`Free plan — up to ${n} tasks a day. Subscribe to remove the limit.`,
+      templatesHeading:'Day templates', templateNamePlaceholder:'Template name', saveTemplateBtn:'Save current list',
+      emptyTemplates:'No saved templates yet.', tasksCount:n=>`${n} tasks`, applyBtn:'Apply', deleteBtn:'Delete',
+      summaryHeading:"Today's summary", doneLabel:'Done', completionLabel:'Completion', plannedLabel:'Planned', actualLabel:'Actual',
+      weeklyHeading:'This week', weeklyCaption:'Task completion over the last 7 days', weeklyLocked:'Weekly analytics is a Premium feature.',
+      historyHeading:'Day history', historyEmpty:'No completed days yet.', historyLocked:'Full history is Premium-only.',
+      historyItem:(d,tt,mn)=>`${d}/${tt} tasks · ${mn} min`,
+      subscriptionHeading:'Subscription', freeTitle:'Free', premiumTitle:'Premium', premiumPrice:'₴99 · $2.99 · €2.79 <span style="font-size:12px;color:var(--ink-dim);">/mo</span>',
+      freeFeatures:['Up to 3 tasks a day','Automatic rescheduling',"Today's summary"],
+      premiumFeatures:['Unlimited tasks','Weekly analytics','Full history','Unlimited templates','Cross-device sync'],
+      subscribeBtn:'Subscribe', manageSubBtn:'Manage subscription',
+      pastDueBanner:'Your last payment failed. Update your payment method to keep access.',
+      portalFailed:'Could not open the subscription portal.',
+      redirecting:'Redirecting to checkout…', checkoutFailed:'Could not create a checkout session.', connError:'Connection error with the payment server.',
+      processing:'Processing your payment… (may take a few seconds)', paidToast:'Payment received — activating Premium…',
+      activated:'Premium activated!', pending:'Payment is processing, refresh in a minute.',
+      confirmCancel:'Cancel your subscription?', canceledToast:'Subscription canceled.', cancelFailed:'Could not cancel.',
+      enterTaskName:'Enter a task name.', minDuration:'Duration must be at least 5 min.', dailyLimit:'Free plan limit — 3 tasks.',
+      templateNameRequired:'Enter a template name.', needTask:'Add a task first.', freeTemplateLimit:'Free plan — 1 template.',
+      templateSaved:'Template saved.', addedFromTemplate:n=>`Added ${n} tasks.`, addedBlocked:(a,b)=>`Added ${a}, ${b} blocked by the limit.`,
+      nameEmpty:'Name is empty.', minInvalid:'Min. 5 minutes.',
+      hardTimeLabel:'Exact time (optional):', hardTimeBothRequired:'Fill in both time fields, or leave both empty.',
+      hardTimeOrderInvalid:'End time must be after start time.',
+      timeConflict:'Time overlaps with another task.',
+      offlineQueued:n=>`⏳ ${n} offline change(s)`, syncComplete:n=>`Synced ${n} change(s).`,
+      offlineAuthExpired:'Session expired — sign in again to save your offline changes.',
+      audioOn:'Focus sound: on', audioOff:'Focus sound: off',
+      audioIndicator:'🎧 432 Hz · 15 Hz binaural beat',
+      reportHeading:'Analytics report', reportLocked:'Weekly AI report is a Premium feature.',
+      reportEmpty:'Not enough data yet from the last 7 days.', reportBtn:'Generate report',
+      reportRegenBtn:'Refresh report', reportLoading:'Analyzing your schedule…',
+      reportFailed:'Could not load the report. Try again later.', reportGeneratedAt:d=>`Generated: ${d}`,
+      reportRateLimited:'The LLM provider is temporarily overloaded. Try again in a few minutes.',
+      reportUnavailable:'The LLM provider is currently unavailable. Try again later.',
+      reportAuthError:'Server-side issue with reports. We are aware of it.',
+      reportRetryBtn:'Try again',
+      specialHeading:'Attributes', specialLevel:lv=>`Level ${lv}`, specialXp:(xp,need)=>`${xp} / ${need} XP`,
+      statStrength:'Strength', statPerception:'Perception', statEndurance:'Endurance', statCharisma:'Charisma',
+      statIntelligence:'Intelligence', statAgility:'Agility', statLuck:'Luck',
+      levelUp:lv=>`🎉 New level: ${lv}!`
+    }
+  };
+  const CATEGORY_KEYS = { work:'catWork', personal:'catPersonal', health:'catHealth', other:'catOther' };
+  const CATEGORY_COLORS = { work:'var(--teal)', personal:'var(--coral)', health:'var(--blue)', other:'var(--ink-faint)' };
+
+  let lang = localStorage.getItem('dayflow:lang') || 'uk';
+  function t(key){ return STR[lang][key]; }
+  function fmtTime(ms){ return new Date(ms).toLocaleTimeString(lang==='uk'?'uk-UA':'en-US',{hour:'2-digit',minute:'2-digit'}); }
+  function toLocalDatetimeValue(iso){
+    if(!iso) return '';
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  // Примітка: у ТЗ підпис showToast(type, message), але в проєкті вже є
+  // десятки викликів showToast(message) з попередніх кроків — щоб не ламати
+  // їх усі, лишаю message першим аргументом, а type — опціональним другим.
+  function showToast(msg, type){
+    const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show');
+    el.classList.remove('toast-warning','toast-error');
+    if(type === 'warning') el.classList.add('toast-warning');
+    if(type === 'error') el.classList.add('toast-error');
+    clearTimeout(showToast._t); showToast._t=setTimeout(()=>el.classList.remove('show'),2600);
+    if(typeof currentTheme !== 'undefined' && currentTheme === 'steampunk') playMechanicalTick();
+  }
+  // Завдання 1: локальна дата користувача, а НЕ UTC. new Date().toISOString()
+  // бере UTC-дату — для України (UTC+2/+3) це означає, що з ~21:00 до 00:00
+  // локального часу день у базі "перескакував" на наступний передчасно.
+  function todayKey(offset){
+    const d = new Date();
+    d.setDate(d.getDate() + (offset||0));
+    const pad = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+
+  let session = null;
+  let premiumPollHandle = null;
+  let state = { dayStart:'09:00', tasks:[], premium:false, subscriptionStatus:'active' };
+  let editingId = null;
+
+  // ---------- Аудіостимуляція: бінауральний ритм через Web Audio API ----------
+  // Синтез у реальному часі, без файлів — працює повністю офлайн.
+  let audioCtx = null;
+  let activeNodes = null; // {oscLeft, oscRight, masterGain}
+  let audioEnabled = localStorage.getItem('dayflow:audio-enabled') === '1';
+  let audioVolume = (parseInt(localStorage.getItem('dayflow:audio-volume') || '8', 10)) / 100;
+
+  const BASE_FREQ = 432;   // Solfeggio-тон, лівий канал
+  const BEAT_FREQ = 15;    // біт Бета-хвилі (концентрація)
+  // Права частота = BASE_FREQ + BEAT_FREQ = 447 Гц — різниця у 15 Гц між
+  // вухами сприймається мозком як бінауральний ритм.
+
+  function ensureAudioCtx(){
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  function startBinauralBeat(baseFreq, beatFreq, volume){
+    const ctx = ensureAudioCtx();
+    if(activeNodes) stopSound(true); // прибрати попередній ритм миттєво, без плавного fade
+
+    const oscLeft = ctx.createOscillator();
+    const oscRight = ctx.createOscillator();
+    oscLeft.type = 'sine'; oscRight.type = 'sine';
+    oscLeft.frequency.value = baseFreq;
+    oscRight.frequency.value = baseFreq + beatFreq;
+
+    const pannerLeft = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+    const pannerRight = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+    if(pannerLeft){ pannerLeft.pan.value = -1; }   // жорстко в лівий канал
+    if(pannerRight){ pannerRight.pan.value = 1; }  // жорстко в правий канал
+
+    const masterGain = ctx.createGain();
+    const now = ctx.currentTime;
+    masterGain.gain.setValueAtTime(0.0001, now);
+    masterGain.gain.exponentialRampToValueAtTime(Math.max(volume, 0.0001), now + 1); // fade-in, anti-click
+
+    if(pannerLeft && pannerRight){
+      oscLeft.connect(pannerLeft).connect(masterGain);
+      oscRight.connect(pannerRight).connect(masterGain);
+    } else {
+      oscLeft.connect(masterGain);
+      oscRight.connect(masterGain);
+    }
+    masterGain.connect(ctx.destination);
+
+    oscLeft.onended = ()=>{ try{ oscLeft.disconnect(); pannerLeft && pannerLeft.disconnect(); }catch(e){} };
+    oscRight.onended = ()=>{ try{ oscRight.disconnect(); pannerRight && pannerRight.disconnect(); }catch(e){} };
+
+    oscLeft.start();
+    oscRight.start();
+    activeNodes = { oscLeft, oscRight, masterGain };
+  }
+
+  function stopSound(immediate){
+    if(!activeNodes || !audioCtx) return;
+    const { oscLeft, oscRight, masterGain } = activeNodes;
+    const now = audioCtx.currentTime;
+    const fadeDuration = immediate ? 0.05 : 0.5;
+
+    // Фікс 1: скасувати заплановану автоматизацію (напр. незавершений fade-in)
+    // і зафіксувати ПОТОЧНЕ значення гучності перед новим ramp — інакше
+    // exponentialRampToValueAtTime може кинути помилку або дати чутний клац.
+    masterGain.gain.cancelScheduledValues(now);
+    masterGain.gain.setValueAtTime(Math.max(masterGain.gain.value, 0.0001), now);
+    masterGain.gain.exponentialRampToValueAtTime(0.0001, now + fadeDuration);
+
+    // Фікс 2: .stop() заплановано на аудіо-таймлайні, а не через setTimeout —
+    // не залежить від тротлингу таймерів у фоновій вкладці.
+    oscLeft.stop(now + fadeDuration + 0.02);
+    oscRight.stop(now + fadeDuration + 0.02);
+
+    activeNodes = null; // ноди самі дограють fade-out і будуть прибрані у onended
+  }
+
+  window.addEventListener('beforeunload', ()=>{ if(activeNodes) stopSound(true); });
+
+  // ---------- Синтезований "механічний" клац для теми Стімпанк ----------
+  // Той самий AudioContext, що й для бінаурального ритму — жодних нових залежностей.
+  function playMechanicalTick(){
+    const ctx = ensureAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = 180;
+    const now = ctx.currentTime;
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.08);
+  }
+
+  // ---------- Теми оформлення ----------
+  let currentTheme = localStorage.getItem('dayflow:theme') || '';
+  function applyTheme(theme){
+    currentTheme = theme;
+    localStorage.setItem('dayflow:theme', theme);
+    if(theme) document.documentElement.setAttribute('data-theme', theme);
+    else document.documentElement.removeAttribute('data-theme');
+    ['theme-classic','theme-techno','theme-steampunk'].forEach(id=>{
+      document.getElementById(id).classList.toggle('active', document.getElementById(id).dataset.theme === theme);
+    });
+  }
+  document.querySelectorAll('.theme-toggle button').forEach(btn=>{
+    btn.addEventListener('click', ()=>applyTheme(btn.dataset.theme));
+  });
+
+  // Глітч-ефект теми "Техно-магія" на кожному кліку кнопки (сама анімація
+  // визначена в CSS всередині @media (prefers-reduced-motion: no-preference)).
+  document.addEventListener('click', (e)=>{
+    if(currentTheme !== 'techno') return;
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    btn.classList.add('glitch-fx');
+    setTimeout(()=>btn.classList.remove('glitch-fx'), 200);
+  });
+
+  // ---------- Supabase data layer (заміна localStorage/файлів) ----------
+  async function authHeader(){
+    const { data } = await sb.auth.getSession();
+    return data.session ? { Authorization: 'Bearer ' + data.session.access_token } : {};
+  }
+
+  async function loadDaySettings(){
+    const { data } = await sb.from('day_settings').select('day_start').eq('day', todayKey()).maybeSingle();
+    state.dayStart = data?.day_start || '09:00';
+  }
+  async function saveDaySettings(){
+    await sb.from('day_settings').upsert({ user_id: session.user.id, day: todayKey(), day_start: state.dayStart });
+  }
+  async function loadTasks(){
+    const { data } = await sb.from('tasks').select('*').eq('day', todayKey()).order('position', {ascending:true});
+    state.tasks = (data||[]).map(rowToTask);
+  }
+  function rowToTask(row){
+    return { id:row.id, name:row.name, plannedMin:row.planned_min, actualMin:row.actual_min,
+      accumulatedMin: Number(row.accumulated_min)||0, category:row.category, status:row.status, startedAt:row.started_at,
+      hardStart: row.start_time || null, hardEnd: row.end_time || null };
+  }
+  async function upsertTask(task){
+    await sb.from('tasks').upsert({
+      id: task.id, user_id: session.user.id, day: todayKey(), name: task.name,
+      planned_min: task.plannedMin, actual_min: task.actualMin, accumulated_min: task.accumulatedMin,
+      category: task.category, status: task.status, started_at: task.startedAt,
+      start_time: task.hardStart || null, end_time: task.hardEnd || null,
+      position: state.tasks.findIndex(x=>x.id===task.id)
+    });
+  }
+  async function deleteTaskRow(id){ await sb.from('tasks').delete().eq('id', id); }
+  async function resyncPositions(){
+    for(let i=0;i<state.tasks.length;i++){ await sb.from('tasks').update({position:i}).eq('id', state.tasks[i].id); }
+  }
+
+  // ---------- Завдання 1: Optimistic UI з обробкою конфлікту розкладу ----------
+  // Наша сторінка повністю state-driven (DOM перегенеровується з state.tasks
+  // при кожному renderTimeline()), тому "знімок DOM" з ТЗ природно
+  // реалізується як знімок ОБ'ЄКТА завдання в state — при відкоті ми просто
+  // повертаємо старий об'єкт і перерендерюємо, а не працюємо з DOM напряму.
+  async function updateTaskTime(taskId, newStart, newEnd){
+    const idx = state.tasks.findIndex(x=>x.id===taskId);
+    if(idx===-1) return false;
+
+    const snapshot = JSON.parse(JSON.stringify(state.tasks[idx]));
+    state.tasks[idx].hardStart = newStart;
+    state.tasks[idx].hardEnd = newEnd;
+    renderFast(); // миттєве оновлення інтерфейсу, ще до відповіді бази
+
+    const { error } = await sb.from('tasks')
+      .update({ start_time: newStart, end_time: newEnd })
+      .eq('id', taskId);
+
+    if(error){
+      state.tasks[idx] = snapshot;
+      renderFast();
+      flashShake(taskId);
+      // Матчимо і за кодом, і за текстом — PostgREST не завжди прокидає
+      // errcode з тригера так само надійно, як текст повідомлення.
+      const isClash = error.code === '23P01' || /Конфлікт часу/i.test(error.message || '');
+      if(isClash){
+        showToast(t('timeConflict'), 'error');
+      } else {
+        showToast(error.message, 'error');
+      }
+      return false;
+    }
+    return true;
+  }
+
+  // Коротка відбивка картки завдання при відкоті — суто візуальний сигнал,
+  // сам rollback стану вже стався в updateTaskTime() до виклику цієї функції.
+  function flashShake(taskId){
+    const el = document.querySelector(`.block[data-task-id="${taskId}"]`);
+    if(!el) return;
+    el.classList.remove('shake-error'); void el.offsetWidth; // рестарт анімації, якщо вже була
+    el.classList.add('shake-error');
+    setTimeout(()=>el.classList.remove('shake-error'), 400);
+  }
+
+  async function listTemplates(){
+    const { data } = await sb.from('templates').select('*').order('created_at',{ascending:true});
+    return data||[];
+  }
+  async function saveTemplateRow(name, tasks){
+    await sb.from('templates').insert({ id:'tpl'+Date.now(), user_id: session.user.id, name, tasks });
+  }
+  async function deleteTemplateRow(id){ await sb.from('templates').delete().eq('id', id); }
+
+  async function getDaysData(n){
+    const from = todayKey(-(n-1));
+    const { data } = await sb.from('tasks').select('day,status,actual_min').gte('day', from).lte('day', todayKey());
+    const byDay = {};
+    (data||[]).forEach(r=>{ (byDay[r.day] = byDay[r.day]||[]).push(r); });
+    const days=[];
+    for(let i=n-1;i>=0;i--){
+      const key = todayKey(-i);
+      const rows = byDay[key] || [];
+      const done = rows.filter(r=>r.status==='done').length;
+      const actualSum = rows.filter(r=>r.status==='done').reduce((s,r)=>s+(r.actual_min||0),0);
+      days.push({key, done, total:rows.length, rate: rows.length ? done/rows.length : 0, actualSum});
+    }
+    return days;
+  }
+  async function computeStreak(){
+    const days = await getDaysData(60);
+    let streak=0;
+    for(let i=days.length-2;i>=0;i--){ // -2: skip today (index days.length-1)
+      const d = days[i];
+      if(d.total===0) break;
+      if((d.done/d.total) >= STREAK_THRESHOLD) streak++; else break;
+    }
+    return streak;
+  }
+
+  async function fetchPremium(){
+    const { data } = await sb.from('profiles').select('premium, subscription_status').eq('id', session.user.id).maybeSingle();
+    state.premium = !!data?.premium;
+    state.subscriptionStatus = data?.subscription_status || 'active';
+  }
+
+  // ---------- Завдання 2: S.P.E.C.I.A.L. — SVG-радар без сторонніх бібліотек ----------
+  async function fetchSpecialStats(){
+    const { data } = await sb.from('profiles')
+      .select('level, xp, strength, perception, endurance, charisma, intelligence, agility, luck')
+      .eq('id', session.user.id).maybeSingle();
+    return data;
+  }
+
+  // Чиста генерація <svg>/<polygon>/<text> по формулі з ТЗ:
+  //   α = (2π) / 7;  x = cx + r·sin(i·α);  y = cy − r·cos(i·α)
+  function renderSpecialRadar(statsArray, containerId){
+    const container = document.getElementById(containerId);
+    if(!container) return;
+
+    const size = 280, cx = size/2, cy = size/2, maxR = size/2 - 48, iconR = maxR + 22;
+    const n = statsArray.length;
+    const alpha = (2 * Math.PI) / n;
+    const pointAt = (i, r) => [cx + r*Math.sin(i*alpha), cy - r*Math.cos(i*alpha)];
+
+    // Завдання 3: soft cap. Значення ≤100 масштабуються лінійно до maxR
+    // (100%-кільце). Вище 100 — радіус і далі росте, але асимптотично,
+    // не більш ніж на +18% від maxR, тому полігон ніколи не "проколює"
+    // підписи характеристик чи не виходить за межі SVG, скільки б не був XP.
+    const outerExtra = maxR * 0.18;
+    function radiusFor(value){
+      const v = Math.max(0, value);
+      if(v <= 100) return (v/100) * maxR;
+      const extra = v - 100;
+      return maxR + outerExtra * (1 - 1/(1 + extra/100));
+    }
+
+    // Концентричні кільця-орієнтири на 25/50/75/100%, щоб було видно масштаб.
+    const gridRings = [0.25,0.5,0.75,1].map(frac=>{
+      const pts = statsArray.map((_,i)=>pointAt(i, frac*maxR).map(v=>v.toFixed(1)).join(',')).join(' ');
+      return `<polygon points="${pts}" fill="none" stroke="var(--line)" stroke-width="1"/>`;
+    }).join('');
+
+    const axes = statsArray.map((_,i)=>{
+      const [x,y] = pointAt(i, maxR);
+      return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>`;
+    }).join('');
+
+    const dataPoints = statsArray.map((s,i)=>{
+      return pointAt(i, radiusFor(s.value)).map(v=>v.toFixed(1)).join(',');
+    }).join(' ');
+
+    const labels = statsArray.map((s,i)=>{
+      const [x,y] = pointAt(i, iconR);
+      const icon = s.icon ? `<image href="${s.icon}" x="${(x-11).toFixed(1)}" y="${(y-11).toFixed(1)}" width="22" height="22" clip-path="circle(11px at 11px 11px)"/>` : '';
+      return `${icon}<text x="${x.toFixed(1)}" y="${(y+18).toFixed(1)}" text-anchor="middle" class="radar-label">${esc(s.letter || s.label)}</text>`;
+    }).join('');
+
+    container.innerHTML = `<svg viewBox="0 0 ${size} ${size}" width="100%" height="${size}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="S.P.E.C.I.A.L.">
+      ${gridRings}${axes}
+      <polygon points="${dataPoints}" class="radar-fill"/>
+      ${labels}
+    </svg>`;
+  }
+
+  // Завдання 3: плавний перехід числових значень (XP, рівень) замість
+  // миттєвої підміни тексту — коротке "прокручування" від старого до нового.
+  function animateNumber(el, from, to, durationMs, formatter){
+    if(from === to){ el.textContent = formatter(to); return; }
+    const start = performance.now();
+    function tick(now){
+      const progress = Math.min(1, (now - start) / durationMs);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out
+      const current = Math.round(from + (to - from) * eased);
+      el.textContent = formatter(current);
+      if(progress < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  let lastSpecialXp = null, lastSpecialLevel = null;
+
+  async function renderSpecial(){
+    const stats = await fetchSpecialStats();
+    if(!stats) return;
+    const statsArray = [
+      { letter:'S', label: t('statStrength'), value: stats.strength, icon:'/special/strength.jpg' },
+      { letter:'P', label: t('statPerception'), value: stats.perception, icon:'/special/perception.jpg' },
+      { letter:'E', label: t('statEndurance'), value: stats.endurance, icon:'/special/endurance.jpg' },
+      { letter:'C', label: t('statCharisma'), value: stats.charisma, icon:'/special/charisma.jpg' },
+      { letter:'I', label: t('statIntelligence'), value: stats.intelligence, icon:'/special/intelligence.jpg' },
+      { letter:'A', label: t('statAgility'), value: stats.agility, icon:'/special/agility.jpg' },
+      { letter:'L', label: t('statLuck'), value: stats.luck, icon:'/special/luck.jpg' }
+    ];
+    renderSpecialRadar(statsArray, 'special-radar');
+
+    const statsWrap = document.getElementById('special-stats');
+    if(statsWrap){
+      statsWrap.innerHTML = statsArray.map(s => `<div class="stat-chip">
+        <img src="${s.icon}" width="44" height="44" alt="">
+        <span class="stat-letter">${s.letter}</span>
+        <span class="stat-name">${esc(s.label)}</span>
+        <span class="stat-val">${s.value}</span>
+      </div>`).join('');
+    }
+
+    const xpNeeded = stats.level * 100;
+    const levelEl = document.getElementById('special-level');
+    const xpEl = document.getElementById('special-xp');
+    const fillEl = document.getElementById('special-xp-fill');
+    const targetPct = Math.min(100, Math.round((stats.xp/xpNeeded)*100));
+
+    if(lastSpecialLevel === null){
+      // Перший рендер за сесію — без анімації, щоб не "прокручувати" з нуля.
+      levelEl.textContent = t('specialLevel')(stats.level);
+      xpEl.textContent = t('specialXp')(stats.xp, xpNeeded);
+      fillEl.style.width = targetPct + '%';
+    } else {
+      animateNumber(levelEl, lastSpecialLevel, stats.level, 500, v => t('specialLevel')(v));
+      animateNumber(xpEl, lastSpecialXp, stats.xp, 500, v => t('specialXp')(v, xpNeeded));
+      fillEl.style.width = targetPct + '%'; // сама смуга анімується через CSS transition
+    }
+    lastSpecialXp = stats.xp;
+    lastSpecialLevel = stats.level;
+  }
+
+  function elapsedMinutes(task){
+    let m = task.accumulatedMin || 0;
+    if(task.status==='active' && task.startedAt) m += (Date.now()-task.startedAt)/DAY_MIN;
+    return m;
+  }
+  function computeSchedule(){
+    const [h,m] = state.dayStart.split(':').map(Number);
+    const base=new Date(); base.setHours(h,m,0,0);
+    let cursor = base.getTime();
+    return state.tasks.map(x=>{
+      const start=cursor; const used = x.status==='done' ? x.actualMin : x.plannedMin;
+      cursor += used*DAY_MIN;
+      return {...x, start, end:cursor};
+    });
+  }
+
+  // ---------- Auth gate ----------
+  function applyGateText(){
+    document.getElementById('gate-title').textContent = t('gateTitle');
+    document.getElementById('gate-sub').textContent = t('gateSub');
+    document.getElementById('auth-email').placeholder = t('emailInputPlaceholder');
+    document.getElementById('btn-send-link').textContent = t('sendLink');
+  }
+  document.getElementById('btn-send-link').addEventListener('click', async ()=>{
+    const email = document.getElementById('auth-email').value.trim();
+    if(!email || !email.includes('@')) return;
+    try{
+      const res = await fetch('/api/auth/request-link', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email})
+      });
+      const data = await res.json();
+      document.getElementById('gate-note').textContent = res.ok ? t('linkSent') : (data.error || t('gateError'));
+    }catch(e){
+      document.getElementById('gate-note').textContent = t('gateError');
+    }
+  });
+  document.getElementById('btn-logout').addEventListener('click', async ()=>{ await sb.auth.signOut(); window.location.reload(); });
+
+  // ---------- static text ----------
+  function applyStaticText(){
+    document.getElementById('html-root').lang = lang;
+    document.getElementById('app-title').innerHTML = t('title');
+    document.getElementById('app-tagline').textContent = t('tagline');
+    document.getElementById('today-heading').textContent = t('todayHeading');
+    document.getElementById('day-start-label').textContent = t('dayStartLabel');
+    document.getElementById('task-name').placeholder = t('taskNamePlaceholder');
+    document.getElementById('btn-add').textContent = t('addBtn');
+    document.getElementById('templates-heading').textContent = t('templatesHeading');
+    document.getElementById('template-name').placeholder = t('templateNamePlaceholder');
+    document.getElementById('btn-save-template').textContent = t('saveTemplateBtn');
+    document.getElementById('summary-heading').textContent = t('summaryHeading');
+    document.getElementById('special-heading').textContent = t('specialHeading');
+    document.getElementById('weekly-heading').textContent = t('weeklyHeading');
+    document.getElementById('history-heading').textContent = t('historyHeading');
+    document.getElementById('report-heading').textContent = t('reportHeading');
+    document.getElementById('subscription-heading').textContent = t('subscriptionHeading');
+    document.getElementById('free-title').textContent = t('freeTitle');
+    document.getElementById('premium-title').textContent = t('premiumTitle');
+    document.getElementById('premium-price').innerHTML = t('premiumPrice');
+    document.getElementById('free-features').innerHTML = t('freeFeatures').map(f=>`<li>${esc(f)}</li>`).join('');
+    document.getElementById('premium-features').innerHTML = t('premiumFeatures').map(f=>`<li>${esc(f)}</li>`).join('');
+    document.getElementById('btn-subscribe').textContent = t('subscribeBtn');
+    document.getElementById('btn-manage').textContent = t('manageSubBtn');
+    document.getElementById('btn-logout').textContent = t('logout');
+    document.getElementById('user-email-display').textContent = session?.user?.email || '';
+
+    const catSelect = document.getElementById('task-category');
+    Object.keys(CATEGORY_KEYS).forEach((k,i)=>{ catSelect.options[i].textContent = t(CATEGORY_KEYS[k]); catSelect.options[i].value = k; });
+    document.querySelectorAll('.preset').forEach(btn=>{ btn.textContent = t('presetLabel')(btn.dataset.min); });
+    document.getElementById('lang-uk').classList.toggle('active', lang==='uk');
+    document.getElementById('lang-en').classList.toggle('active', lang==='en');
+    applyGateText();
+
+    document.getElementById('nav-today').textContent = t('todayHeading');
+    document.getElementById('nav-templates').textContent = t('templatesHeading');
+    document.getElementById('nav-summary').textContent = t('summaryHeading');
+    document.getElementById('nav-special').textContent = t('specialHeading');
+    document.getElementById('nav-weekly').textContent = t('weeklyHeading');
+    document.getElementById('nav-history').textContent = t('historyHeading');
+    document.getElementById('nav-report').textContent = t('reportHeading');
+    document.getElementById('nav-subscription').textContent = t('subscriptionHeading');
+    renderAudioControls();
+  }
+
+  function renderAudioControls(){
+    const btn = document.getElementById('btn-audio-toggle');
+    if(!btn) return;
+    btn.textContent = '🎧 ' + (audioEnabled ? t('audioOn') : t('audioOff'));
+    document.getElementById('audio-volume').style.display = audioEnabled ? 'inline-block' : 'none';
+  }
+
+  // ---------- dynamic rendering (усі назви екрануються через esc()) ----------
+  function renderPlanBadge(){
+    const badge=document.getElementById('plan-badge');
+    badge.textContent = state.premium ? t('premiumPlan') : t('freePlan');
+    badge.className = 'plan-badge'+(state.premium?' pro':'');
+    const hasStripeHistory = state.premium || state.subscriptionStatus === 'past_due';
+    document.getElementById('btn-manage').style.display = hasStripeHistory ? 'inline-block' : 'none';
+    document.getElementById('subscribe-row').style.display = state.premium ? 'none' : 'flex';
+
+    const banner = document.getElementById('billing-banner');
+    if(state.subscriptionStatus === 'past_due'){
+      banner.style.display = 'block';
+      banner.textContent = t('pastDueBanner');
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+  function renderProjectedEnd(){
+    const el=document.getElementById('projected-end');
+    if(state.tasks.length===0){ el.textContent=''; return; }
+    const sc=computeSchedule(); el.innerHTML = t('projectedEnd')(fmtTime(sc[sc.length-1].end));
+  }
+  function canMove(i,dir){ const tt=i+dir; if(tt<0||tt>=state.tasks.length) return false; return state.tasks[i].status==='pending'&&state.tasks[tt].status==='pending'; }
+
+  function renderTimeline(){
+    const sc=computeSchedule(); const wrap=document.getElementById('timeline');
+    if(sc.length===0){ wrap.innerHTML=`<div class="empty">${t('emptyTimeline')}</div>`; return; }
+    wrap.innerHTML = sc.map((task,i)=>{
+      const overrun = task.status==='done' && task.actualMin>task.plannedMin;
+      const cls=['block']; if(task.status==='active')cls.push('active'); if(task.status==='paused')cls.push('paused'); if(task.status==='done')cls.push('done'); if(overrun)cls.push('overrun');
+      const dot = `<span class="cat-dot" style="background:${CATEGORY_COLORS[task.category]||CATEGORY_COLORS.other};"></span>`;
+      if(editingId===task.id){
+        return `<div class="${cls.join(' ')}" data-task-id="${task.id}"><div class="edit-row">
+          <input type="text" id="edit-name-${task.id}" value="${esc(task.name)}">
+          <select id="edit-cat-${task.id}">${Object.keys(CATEGORY_KEYS).map(k=>`<option value="${k}" ${task.category===k?'selected':''}>${t(CATEGORY_KEYS[k])}</option>`).join('')}</select>
+          <input type="number" id="edit-min-${task.id}" value="${task.plannedMin}" min="5" step="5">
+          <button class="primary" data-action="save-edit" data-id="${task.id}">${t('saveBtn')}</button>
+          <button class="ghost" data-action="cancel-edit" data-id="${task.id}">${t('cancelBtn')}</button>
+        </div>
+        <div class="edit-row" style="margin-top:6px;">
+          <label style="font-size:11.5px;color:var(--ink-faint);align-self:center;">${t('hardTimeLabel')}</label>
+          <input type="datetime-local" id="edit-start-${task.id}" value="${toLocalDatetimeValue(task.hardStart)}">
+          <input type="datetime-local" id="edit-end-${task.id}" value="${toLocalDatetimeValue(task.hardEnd)}">
+        </div></div>`;
+      }
+      let actions='';
+      const audioIndicator = (audioEnabled && task.status==='active')
+        ? `<div class="audio-pill">${t('audioIndicator')}</div>` : '';
+      const hardTimePill = task.hardStart && task.hardEnd
+        ? `<div class="audio-pill" style="color:var(--ink-dim);background:var(--line);">🔒 ${new Date(task.hardStart).toLocaleTimeString(lang==='uk'?'uk-UA':'en-US',{hour:'2-digit',minute:'2-digit'})}–${new Date(task.hardEnd).toLocaleTimeString(lang==='uk'?'uk-UA':'en-US',{hour:'2-digit',minute:'2-digit'})}</div>`
+        : '';
+      if(task.status==='pending'){
+        actions = `<div class="reorder"><button data-action="up" data-id="${task.id}" ${canMove(i,-1)?'':'disabled'}>▲</button><button data-action="down" data-id="${task.id}" ${canMove(i,1)?'':'disabled'}>▼</button></div>
+          <button class="primary" data-action="start" data-id="${task.id}">${t('startBtn')}</button>
+          <button class="ghost" data-action="remove" data-id="${task.id}">${t('removeBtn')}</button>${hardTimePill}`;
+      } else if(task.status==='active'){
+        actions = `<button class="primary" data-action="complete" data-id="${task.id}">${t('completeBtn')(Math.max(1,Math.round(elapsedMinutes(task))))}</button>
+          <button class="ghost" data-action="pause" data-id="${task.id}">${t('pauseBtn')}</button>${audioIndicator}`;
+      } else if(task.status==='paused'){
+        actions = `<button class="primary" data-action="resume" data-id="${task.id}">${t('resumeBtn')}</button>
+          <button class="ghost" data-action="complete" data-id="${task.id}">${t('completeBtn')(Math.max(1,Math.round(elapsedMinutes(task))))}</button>`;
+      }
+      let meta;
+      if(task.status==='done') meta = t('metaDone')(task.plannedMin, task.actualMin, overrun);
+      else if(task.status==='paused') meta = t('metaPaused')(Math.round(elapsedMinutes(task)), task.plannedMin);
+      else meta = t('metaPending')(task.plannedMin);
+      const nameHtml = task.status==='pending'
+        ? `<span class="block-name" data-action="edit" data-id="${task.id}">${esc(task.name)}${t('editHint')}</span>`
+        : `<span class="block-name">${esc(task.name)}</span>`;
+      return `<div class="${cls.join(' ')}" data-task-id="${task.id}"><div class="block-top"><div class="block-name-row">${dot}${nameHtml}</div><div class="block-time">${fmtTime(task.start)}–${fmtTime(task.end)}</div></div>
+        <div class="block-meta">${meta}</div><div class="block-actions">${actions}</div></div>`;
+    }).join('');
+  }
+
+  function renderSummary(){
+    const total=state.tasks.length, done=state.tasks.filter(x=>x.status==='done').length;
+    const plannedSum=state.tasks.reduce((s,x)=>s+x.plannedMin,0);
+    const actualSum=state.tasks.filter(x=>x.status==='done').reduce((s,x)=>s+x.actualMin,0);
+    const rate = total? Math.round((done/total)*100):0;
+    document.getElementById('day-summary').innerHTML = `
+      <div class="stat"><div class="k">${t('doneLabel')}</div><div class="v">${done} / ${total}</div></div>
+      <div class="stat"><div class="k">${t('completionLabel')}</div><div class="v">${rate}%</div></div>
+      <div class="stat"><div class="k">${t('plannedLabel')}</div><div class="v">${plannedSum} ${t('minUnit')}</div></div>
+      <div class="stat"><div class="k">${t('actualLabel')}</div><div class="v">${actualSum} ${t('minUnit')}</div></div>`;
+  }
+  function renderLimitNote(){
+    document.getElementById('limit-note').innerHTML = (!state.premium && state.tasks.length>=FREE_TASK_LIMIT)
+      ? `<div class="lock-note">${t('limitNote')(FREE_TASK_LIMIT)}</div>` : '';
+  }
+  async function renderWeekly(){
+    const days=await getDaysData(7);
+    const bars=`<div class="bars">${days.map(d=>`<div class="bar-col"><div class="bar-track"><div class="bar-fill" style="height:${Math.round(d.rate*80)}px;margin-top:${80-Math.round(d.rate*80)}px;"></div></div><div class="bar-label">${new Date(d.key).toLocaleDateString(lang==='uk'?'uk-UA':'en-US',{weekday:'short'})}</div></div>`).join('')}</div>`;
+    const el=document.getElementById('weekly-content');
+    if(state.premium) el.innerHTML = bars+`<div style="font-size:12px;color:var(--ink-dim);margin-top:10px;">${t('weeklyCaption')}</div>`;
+    else el.innerHTML = `<div class="weekly-blur">${bars}</div><div class="upgrade-overlay"><p>${t('weeklyLocked')}</p></div>`;
+  }
+  async function renderHistory(){
+    const days=(await getDaysData(14)).slice().reverse().filter(d=>d.total>0);
+    const html = days.length ? days.map(d=>`<div class="history-item"><span>${new Date(d.key).toLocaleDateString(lang==='uk'?'uk-UA':'en-US',{day:'numeric',month:'short'})}</span><span>${t('historyItem')(d.done,d.total,d.actualSum)}</span></div>`).join('') : `<div class="empty">${t('historyEmpty')}</div>`;
+    const el=document.getElementById('history-content');
+    if(state.premium) el.innerHTML = html;
+    else el.innerHTML = `<div class="weekly-blur">${html}</div><div class="upgrade-overlay"><p>${t('historyLocked')}</p></div>`;
+  }
+
+  function renderReportCard(inner){
+    const el = document.getElementById('report-content');
+    if(state.premium) el.innerHTML = inner;
+    else el.innerHTML = `<div class="weekly-blur">${inner}</div><div class="upgrade-overlay"><p>${t('reportLocked')}</p></div>`;
+  }
+  function renderReportInitial(){
+    renderReportCard(state.premium
+      ? `<button class="primary small" data-action="gen-report">${t('reportBtn')}</button>`
+      : `<p class="empty">${t('reportEmpty')}</p>`);
+  }
+  async function renderReport(forceRegen){
+    if(!state.premium){ renderReportInitial(); return; }
+    // Завдання 4: skeleton замість статичного тексту "завантаження".
+    renderReportCard(`
+      <div class="skeleton-line" style="width:95%;"></div>
+      <div class="skeleton-line" style="width:88%;"></div>
+      <div class="skeleton-line" style="width:60%;"></div>
+    `);
+    try{
+      const headers = await authHeader();
+      // Наші назви тем ('techno'/'steampunk'/'') відрізняються від ключів
+      // словника персон на сервері ('technomagic'/'steampunk'/'default').
+      const themeParam = currentTheme === 'techno' ? 'technomagic' : (currentTheme || 'default');
+      const res = await fetch(`/api/reports/weekly?lang=${lang}&theme=${themeParam}&today=${todayKey()}${forceRegen ? '&regenerate=1' : ''}`, { headers });
+      const data = await res.json().catch(()=>({}));
+
+      if(!res.ok){
+        const errorTextMap = {
+          rate_limited: t('reportRateLimited'),
+          unavailable: t('reportUnavailable'),
+          auth_error: t('reportAuthError')
+        };
+        const msg = errorTextMap[data.errorType] || data.error || t('reportFailed');
+        renderReportCard(`
+          <p class="report-error">${esc(msg)}</p>
+          <button class="ghost small" data-action="regen-report" style="margin-top:8px;">${t('reportRetryBtn')}</button>
+        `);
+        return;
+      }
+
+      // Текст від LLM рендеримо як звичайний текст (esc() + перенос рядків),
+      // а не як markdown/HTML — той самий принцип безпеки, що й для назв завдань.
+      const safeText = esc(data.report).replace(/\n/g, '<br>');
+      const genDate = new Date(data.generatedAt).toLocaleString(lang==='uk'?'uk-UA':'en-US');
+      renderReportCard(`
+        <div style="font-size:13.5px;line-height:1.6;">${safeText}</div>
+        <div style="font-size:11.5px;color:var(--ink-faint);margin-top:12px;">${t('reportGeneratedAt')(genDate)}</div>
+        <button class="ghost small" data-action="regen-report" style="margin-top:8px;">${t('reportRegenBtn')}</button>
+      `);
+    }catch(e){
+      renderReportCard(`
+        <p class="report-error">${t('reportFailed')}<span class="retry-hint">${e.message||''}</span></p>
+        <button class="ghost small" data-action="regen-report" style="margin-top:8px;">${t('reportRetryBtn')}</button>
+      `);
+    }
+  }
+  document.getElementById('report-content').addEventListener('click', (e)=>{
+    if(e.target.dataset.action === 'gen-report') renderReport(false);
+    if(e.target.dataset.action === 'regen-report') renderReport(true);
+  });
+
+  async function renderStreak(){
+    const s=await computeStreak(); const badge=document.getElementById('streak-badge');
+    if(s>0){ badge.style.display='inline-flex'; badge.textContent=t('streak')(s); } else badge.style.display='none';
+  }
+  async function renderTemplates(){
+    const templates=await listTemplates(); const wrap=document.getElementById('template-list');
+    if(templates.length===0){ wrap.innerHTML=`<div class="empty">${t('emptyTemplates')}</div>`; return; }
+    wrap.innerHTML = templates.map(tpl=>`<div class="template-item"><div><div>${esc(tpl.name)}</div><div class="meta">${t('tasksCount')(tpl.tasks.length)}</div></div>
+      <div class="template-actions"><button class="small primary" data-tpl="apply" data-id="${tpl.id}">${t('applyBtn')}</button><button class="small ghost" data-tpl="delete" data-id="${tpl.id}">${t('deleteBtn')}</button></div></div>`).join('');
+  }
+
+  async function renderAll(){ renderPlanBadge(); renderProjectedEnd(); renderTimeline(); renderSummary(); renderLimitNote(); await renderWeekly(); await renderHistory(); renderReportInitial(); await renderStreak(); await renderSpecial(); }
+  async function rerenderEverything(){ applyStaticText(); await renderAll(); await renderTemplates(); }
+
+  document.getElementById('lang-uk').addEventListener('click', ()=>{ lang='uk'; localStorage.setItem('dayflow:lang','uk'); rerenderEverything(); });
+  document.getElementById('lang-en').addEventListener('click', ()=>{ lang='en'; localStorage.setItem('dayflow:lang','en'); rerenderEverything(); });
+
+  document.getElementById('btn-audio-toggle').addEventListener('click', ()=>{
+    audioEnabled = !audioEnabled;
+    localStorage.setItem('dayflow:audio-enabled', audioEnabled ? '1' : '0');
+    if(audioEnabled){
+      // Розблоковуємо/резюмуємо AudioContext саме тут, у самому обробнику
+      // кліку — це user gesture, без якого мобільні браузери (iOS Safari,
+      // Chrome Android) не дозволять відтворення звуку взагалі.
+      ensureAudioCtx();
+      if(state.tasks.some(x=>x.status==='active')) startBinauralBeat(BASE_FREQ, BEAT_FREQ, audioVolume);
+    } else {
+      stopSound();
+    }
+    renderAudioControls();
+    renderTimeline();
+  });
+  document.getElementById('audio-volume').addEventListener('input', (e)=>{
+    audioVolume = Number(e.target.value) / 100;
+    localStorage.setItem('dayflow:audio-volume', e.target.value);
+    if(activeNodes && audioCtx){
+      activeNodes.masterGain.gain.setTargetAtTime(Math.max(audioVolume, 0.0001), audioCtx.currentTime, 0.1);
+    }
+  });
+  document.getElementById('audio-volume').value = Math.round(audioVolume * 100);
+
+  document.querySelectorAll('.preset').forEach(btn=>btn.addEventListener('click', ()=>{
+    document.getElementById('task-min').value=btn.dataset.min;
+    document.querySelectorAll('.preset').forEach(b=>b.classList.remove('active-preset'));
+    btn.classList.add('active-preset');
+  }));
+
+  document.getElementById('btn-add').addEventListener('click', async ()=>{
+    const nameInput=document.getElementById('task-name'), minInput=document.getElementById('task-min'), catInput=document.getElementById('task-category');
+    const name=nameInput.value.trim(), min=parseInt(minInput.value,10);
+    if(!name){ showToast(t('enterTaskName')); return; }
+    if(!min||min<5){ showToast(t('minDuration')); return; }
+    if(!state.premium && state.tasks.length>=FREE_TASK_LIMIT){ showToast(t('dailyLimit')); return; }
+    const task = {id:'t'+Date.now(), name, plannedMin:min, category:catInput.value, status:'pending', actualMin:0, accumulatedMin:0, startedAt:null};
+    state.tasks.push(task); nameInput.value='';
+    renderFast();
+    try{ await upsertTask(task); }
+    catch(err){ state.tasks = state.tasks.filter(x=>x.id!==task.id); renderFast(); showToast(t('connError')); return; }
+    await renderWeekly(); await renderHistory(); await renderStreak();
+  });
+
+  document.getElementById('day-start').addEventListener('change', async (e)=>{ state.dayStart=e.target.value; await saveDaySettings(); await renderAll(); });
+
+  // Гарячі клавіші: Enter у полі назви — додати завдання; Space (поза полями вводу) — почати/завершити.
+  document.getElementById('task-name').addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('btn-add').click(); }
+  });
+  document.addEventListener('keydown', (e)=>{
+    const tag = (document.activeElement && document.activeElement.tagName || '').toLowerCase();
+    if(tag==='input' || tag==='select' || tag==='textarea') return;
+    if(e.code === 'Space' || e.key === ' '){
+      e.preventDefault();
+      const active = state.tasks.find(x=>x.status==='active');
+      const paused = state.tasks.find(x=>x.status==='paused');
+      const pending = state.tasks.find(x=>x.status==='pending');
+      const target = active || paused;
+      if(target){
+        document.querySelector(`[data-action="complete"][data-id="${target.id}"]`)?.click();
+      } else if(pending){
+        document.querySelector(`[data-action="start"][data-id="${pending.id}"]`)?.click();
+      }
+    }
+  });
+
+  document.getElementById('btn-save-template').addEventListener('click', async ()=>{
+    const nameInput=document.getElementById('template-name'); const name=nameInput.value.trim();
+    if(!name){ showToast(t('templateNameRequired')); return; }
+    if(state.tasks.length===0){ showToast(t('needTask')); return; }
+    const templates=await listTemplates();
+    if(!state.premium && templates.length>=FREE_TEMPLATE_LIMIT){ showToast(t('freeTemplateLimit')); return; }
+    await saveTemplateRow(name, state.tasks.map(x=>({name:x.name, plannedMin:x.plannedMin, category:x.category||'other'})));
+    nameInput.value=''; showToast(t('templateSaved')); await renderTemplates();
+  });
+  document.getElementById('template-list').addEventListener('click', async (e)=>{
+    const btn=e.target.closest('[data-tpl]'); if(!btn) return;
+    if(btn.dataset.tpl==='delete'){ await deleteTemplateRow(btn.dataset.id); await renderTemplates(); return; }
+    if(btn.dataset.tpl==='apply'){
+      const templates=await listTemplates(); const tpl=templates.find(x=>x.id===btn.dataset.id); if(!tpl) return;
+      let added=0, blocked=0;
+      for(const x of tpl.tasks){
+        if(!state.premium && state.tasks.length>=FREE_TASK_LIMIT){ blocked++; continue; }
+        const task = {id:'t'+Date.now()+Math.random().toString(36).slice(2,5), name:x.name, plannedMin:x.plannedMin, category:x.category||'other', status:'pending', actualMin:0, accumulatedMin:0, startedAt:null};
+        state.tasks.push(task); await upsertTask(task); added++;
+      }
+      await renderAll();
+      showToast(blocked>0 ? t('addedBlocked')(added,blocked) : t('addedFromTemplate')(added));
+    }
+  });
+
+  // Швидкий локальний рендер без важких мережевих запитів (тиждень/історія/стрік) —
+  // саме це дає відчуття "миттєвого" відгуку інтерфейсу.
+  function renderFast(){ renderPlanBadge(); renderProjectedEnd(); renderTimeline(); renderSummary(); renderLimitNote(); updateOfflineBadge(); }
+
+  document.getElementById('timeline').addEventListener('click', async (e)=>{
+    const btn=e.target.closest('[data-action]'); if(!btn) return;
+    const id=btn.dataset.id, action=btn.dataset.action;
+    const idx=state.tasks.findIndex(x=>x.id===id); if(idx===-1) return;
+
+    if(action==='edit'){ editingId=id; renderTimeline(); return; }
+    if(action==='cancel-edit'){ editingId=null; renderTimeline(); return; }
+    if(action==='save-edit'){
+      const newName=document.getElementById('edit-name-'+id).value.trim();
+      const newMin=parseInt(document.getElementById('edit-min-'+id).value,10);
+      const newCat=document.getElementById('edit-cat-'+id).value;
+      const startInput=document.getElementById('edit-start-'+id).value;
+      const endInput=document.getElementById('edit-end-'+id).value;
+      if(!newName){ showToast(t('nameEmpty')); return; }
+      if(!newMin||newMin<5){ showToast(t('minInvalid')); return; }
+      if((startInput && !endInput) || (!startInput && endInput)){ showToast(t('hardTimeBothRequired')); return; }
+
+      const task = state.tasks[idx];
+      task.name=newName; task.plannedMin=newMin; task.category=newCat; editingId=null;
+      renderFast();
+      try{ await upsertTask(task); }catch(err){ showToast(t('connError')); }
+
+      // Точний час — окремим шляхом через updateTaskTime(), бо саме там
+      // ловиться конфлікт 23P01 від тригера й робиться predicated rollback.
+      if(startInput && endInput){
+        const startIso = new Date(startInput).toISOString();
+        const endIso = new Date(endInput).toISOString();
+        if(new Date(endIso) <= new Date(startIso)){ showToast(t('hardTimeOrderInvalid'), 'warning'); return; }
+        await updateTaskTime(id, startIso, endIso);
+      } else if(task.hardStart || task.hardEnd){
+        // Поля очищено користувачем — знімаємо жорсткий слот, повертаємось у гнучкий режим.
+        task.hardStart = null; task.hardEnd = null;
+        await upsertTask(task);
+        renderFast();
+      }
+      return;
+    }
+
+    // ---- Оптимістичне оновлення: знімок стану для можливого відкату ----
+    const snapshot = JSON.parse(JSON.stringify(state.tasks));
+
+    if(action==='remove'){
+      const removed = state.tasks[idx];
+      state.tasks.splice(idx,1);
+      renderFast();
+      try{ await deleteTaskRow(id); }
+      catch(err){ state.tasks = snapshot; renderFast(); showToast(t('connError')); }
+      await renderWeekly(); await renderHistory(); await renderStreak();
+      return;
+    }
+
+    const task=state.tasks[idx];
+    if(action==='start'){
+      task.status='active'; task.startedAt=Date.now(); task.accumulatedMin=0;
+      if(audioEnabled) startBinauralBeat(BASE_FREQ, BEAT_FREQ, audioVolume);
+    }
+    else if(action==='pause'){
+      task.accumulatedMin=elapsedMinutes(task); task.status='paused'; task.startedAt=null;
+      stopSound();
+    }
+    else if(action==='resume'){
+      task.status='active'; task.startedAt=Date.now();
+      if(audioEnabled) startBinauralBeat(BASE_FREQ, BEAT_FREQ, audioVolume);
+    }
+    else if(action==='complete'){
+      task.status='done'; task.actualMin=Math.max(1,Math.round(elapsedMinutes(task)));
+      stopSound();
+    }
+    else if(action==='up'&&canMove(idx,-1)){ [state.tasks[idx-1],state.tasks[idx]]=[state.tasks[idx],state.tasks[idx-1]]; }
+    else if(action==='down'&&canMove(idx,1)){ [state.tasks[idx+1],state.tasks[idx]]=[state.tasks[idx],state.tasks[idx+1]]; }
+    else return;
+
+    // Інтерфейс оновлюється негайно — мережевий запит іде вже після цього.
+    renderFast();
+
+    try{
+      if(action==='up'||action==='down'){ await resyncPositions(); }
+      if(action==='complete'){
+        // Безпечний шлях: RPC сама позначає завдання виконаним і нараховує XP
+        // атомарно, з захистом від подвійного нарахування (migration_004).
+        const { data, error } = await sb.rpc('complete_task_and_award_xp', {
+          p_task_id: id, p_actual_min: task.actualMin
+        });
+        if(error){
+          if(!/вже нараховано/.test(error.message || '')){ throw error; }
+          // Гонитва подвійного кліку: завдання вже фактично виконане на сервері —
+          // локальний стан і так правильний, просто не відкочуємо його.
+        } else if(data?.leveled_up){
+          showToast(t('levelUp')(data.new_level));
+        }
+        await renderSpecial();
+      } else {
+        await upsertTask(task);
+      }
+    }catch(err){
+      state.tasks = snapshot;
+      renderFast();
+      showToast(t('connError'));
+      return;
+    }
+    await renderWeekly(); await renderHistory(); await renderStreak();
+  });
+
+  document.getElementById('btn-subscribe').addEventListener('click', async ()=>{
+    const currency = document.getElementById('user-currency').value;
+    document.getElementById('subscribe-note').textContent = t('redirecting');
+    try{
+      const headers = { 'Content-Type':'application/json', ...(await authHeader()) };
+      const res = await fetch('/api/create-checkout-session', { method:'POST', headers, body: JSON.stringify({currency}) });
+      const data = await res.json();
+      if(data.url) window.location.href = data.url; else showToast(t('checkoutFailed'));
+    }catch(e){ showToast(t('connError')); }
+  });
+
+  document.getElementById('btn-manage').addEventListener('click', async ()=>{
+    try{
+      const headers = { 'Content-Type':'application/json', ...(await authHeader()) };
+      const res = await fetch('/api/create-portal-session', { method:'POST', headers });
+      const data = await res.json();
+      if(data.url) window.location.href = data.url; else showToast(t('portalFailed'));
+    }catch(e){ showToast(t('portalFailed')); }
+  });
+
+  // ---------- Bootstrapping ----------
+  async function enterApp(){
+    document.getElementById('auth-gate').style.display = 'none';
+    document.getElementById('app-root').style.display = 'block';
+    document.getElementById('side-nav').style.display = ''; // хай CSS media query вирішує, показувати чи ні
+
+    await loadDaySettings();
+    await loadTasks();
+    await fetchPremium();
+    document.getElementById('day-start').value = state.dayStart;
+
+    applyStaticText();
+
+    const params = new URLSearchParams(window.location.search);
+    if(params.get('upgraded')==='1'){
+      document.getElementById('subscribe-note').textContent = t('processing');
+      showToast(t('paidToast'));
+      for(let i=0;i<5;i++){ await new Promise(r=>setTimeout(r,1500)); await fetchPremium(); if(state.premium) break; }
+      document.getElementById('subscribe-note').textContent = state.premium ? t('activated') : t('pending');
+      history.replaceState({}, '', window.location.pathname);
+    }
+
+    await renderAll();
+    await renderTemplates();
+    await updateOfflineBadge();
+    setInterval(()=>{ if(state.tasks.some(x=>x.status==='active')){ renderTimeline(); renderProjectedEnd(); } }, 15000);
+
+    // Опитуємо статус підписки лише поки жива авторизована сесія —
+    // інакше після logout інтервал і далі стукав би в /profiles даремно.
+    if(premiumPollHandle) clearInterval(premiumPollHandle);
+    premiumPollHandle = setInterval(async ()=>{
+      const { data } = await sb.auth.getSession();
+      if(!data.session){ clearInterval(premiumPollHandle); premiumPollHandle = null; return; }
+      await fetchPremium();
+    }, 60000);
+  }
+
+  // ---------- PWA: офлайн-черга та Service Worker ----------
+  async function updateOfflineBadge(){
+    const badge = document.getElementById('offline-badge');
+    if(!window.dayflowQueue){ badge.style.display='none'; return; }
+    const n = await window.dayflowQueue.count();
+    if(n > 0){ badge.style.display='inline-flex'; badge.textContent = t('offlineQueued')(n); }
+    else badge.style.display = 'none';
+  }
+
+  async function refreshDataAfterSync(){
+    if(!session) return;
+    await loadDaySettings();
+    await loadTasks();
+    await renderAll();
+    await renderTemplates();
+    await updateOfflineBadge();
+  }
+
+  // Фолбек для браузерів без Background Sync API (насамперед Safari/iOS):
+  // просто пробуємо прогнати чергу вручну щойно з'явилась мережа.
+  async function manualFlush(){
+    if(!window.dayflowQueue || !navigator.onLine) return;
+    const result = await window.dayflowQueue.flushQueue();
+    if(result.synced > 0) showToast(t('syncComplete')(result.synced));
+    if(result.authFailed) showToast(t('offlineAuthExpired'));
+    await updateOfflineBadge();
+    if(result.synced > 0) await refreshDataAfterSync();
+  }
+
+  window.addEventListener('online', manualFlush);
+
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('/sw.js').then(()=>{
+      // Не всі браузери (Safari/iOS) підтримують Background Sync —
+      // тому паралельно з подією 'sync' у SW тримаємо цей ручний шлях.
+      if(navigator.onLine) manualFlush();
+    }).catch(err => console.error('Service Worker registration failed:', err));
+
+    navigator.serviceWorker.addEventListener('message', async (event)=>{
+      if(event.data?.type === 'dayflow-sync-complete'){
+        if(event.data.synced > 0) showToast(t('syncComplete')(event.data.synced));
+        if(event.data.authFailed) showToast(t('offlineAuthExpired'));
+        await updateOfflineBadge();
+        if(event.data.synced > 0) await refreshDataAfterSync();
+      }
+    });
+  }
+
+  (async function init(){
+    applyTheme(currentTheme);
+    applyStaticText();
+    const { data } = await sb.auth.getSession();
+    session = data.session;
+    if(session){ await enterApp(); }
+    sb.auth.onAuthStateChange(async (event, newSession)=>{
+      if(newSession && !session){ session = newSession; await enterApp(); }
+      if(!newSession){
+        session = null;
+        if(premiumPollHandle){ clearInterval(premiumPollHandle); premiumPollHandle = null; }
+        document.getElementById('auth-gate').style.display='flex';
+        document.getElementById('app-root').style.display='none';
+        document.getElementById('side-nav').style.display='none';
+      }
+    });
+  })();
+})();
+</script>
+</body>
+</html>
