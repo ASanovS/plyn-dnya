@@ -18,5 +18,6 @@ alter table llm_reports enable row level security;
 
 -- Клієнт може тільки читати свої звіти. Запис — лише supabaseAdmin
 -- (service_role) на сервері, після реальної відповіді від LLM.
+drop policy if exists "llm_reports_select_own" on llm_reports;
 create policy "llm_reports_select_own" on llm_reports
   for select using (auth.uid() = user_id);
