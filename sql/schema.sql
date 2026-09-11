@@ -21,6 +21,7 @@ create table if not exists profiles (
 
 alter table profiles enable row level security;
 
+drop policy if exists "profiles_select_own" on profiles;
 create policy "profiles_select_own" on profiles
   for select using (auth.uid() = id);
 
@@ -59,6 +60,7 @@ create table if not exists day_settings (
 
 alter table day_settings enable row level security;
 
+drop policy if exists "day_settings_owner" on day_settings;
 create policy "day_settings_owner" on day_settings
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -81,6 +83,7 @@ create table if not exists tasks (
 
 alter table tasks enable row level security;
 
+drop policy if exists "tasks_owner" on tasks;
 create policy "tasks_owner" on tasks
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -98,6 +101,7 @@ create table if not exists templates (
 
 alter table templates enable row level security;
 
+drop policy if exists "templates_owner" on templates;
 create policy "templates_owner" on templates
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -109,8 +113,13 @@ create table if not exists stripe_events (
   created_at timestamptz not null default now()
 );
 
--- До цієї таблиці звертається лише сервер через service_role ключ,
--- тому додаткові RLS-політики не потрібні (RLS вимкнено = доступ лише service_role).
+-- ВИПРАВЛЕННЯ: попередній коментар тут був некоректний. За замовчуванням
+-- Supabase видає ролям anon/authenticated GRANT на нові таблиці в public —
+-- без явного ENABLE ROW LEVEL SECURITY вони МОГЛИ Б читати/писати сюди.
+-- Тут навмисно НЕМАЄ жодної policy — це означає повну заборону для
+-- anon/authenticated. service_role і далі має доступ завжди, бо він
+-- обходить RLS незалежно від того, увімкнено її на таблиці чи ні.
+alter table stripe_events enable row level security;
 
 -- ==========================================================
 -- Автоматичний архів виконаних завдань старших за 90 днів
@@ -118,6 +127,9 @@ create table if not exists stripe_events (
 
 -- Таблиця-архів з такою ж структурою, що й tasks.
 create table if not exists archived_tasks (like tasks including all);
+-- "LIKE ... INCLUDING ALL" копіює індекси/обмеження/дефолти, але НЕ статус
+-- RLS — тому вмикаємо явно окремим рядком (той самий фікс, що й вище).
+alter table archived_tasks enable row level security;
 
 -- Функція: переносить старі виконані завдання в архів і видаляє з робочої таблиці.
 create or replace function public.archive_old_tasks()
