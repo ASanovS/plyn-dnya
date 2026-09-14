@@ -18,10 +18,13 @@
   }
   *{box-sizing:border-box;}
   html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-serif;}
-  .wrap{max-width:960px;margin:0 auto;padding:32px 18px 60px;}
-  h1{font-family:'Fraunces',serif;font-weight:600;font-size:30px;margin:0 0 2px;letter-spacing:-0.01em;}
+  .wrap{max-width:960px;margin:0 auto;padding:max(12px, env(safe-area-inset-top)) 16px 60px;}
+  @media (min-width:761px){.wrap{padding:32px 18px 60px;}}
+  h1{font-family:'Fraunces',serif;font-weight:600;font-size:22px;margin:0 0 2px;letter-spacing:-0.01em;}
+  @media (min-width:761px){h1{font-size:30px;}}
   h1 em{font-style:italic;color:var(--teal);}
-  .sub{color:var(--ink-dim);font-size:14px;margin:0 0 28px;max-width:56ch;line-height:1.5;}
+  .sub{color:var(--ink-dim);font-size:13px;margin:0 0 16px;max-width:56ch;line-height:1.45;}
+  @media (max-width:760px){.sub{display:none;}}
   .badges{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
   .lang-toggle{display:inline-flex;border:1px solid var(--line);border-radius:100px;overflow:hidden;}
   .lang-toggle button{border:none;border-radius:0;padding:5px 11px;font-size:12px;background:#fff;}
@@ -145,6 +148,108 @@
   .stat-chip .stat-letter{ font-size:10px; font-weight:600; letter-spacing:0.04em; color:var(--teal); }
   .stat-chip .stat-name{ font-size:10.5px; color:var(--ink-dim); text-align:center; line-height:1.2; }
   .stat-chip .stat-val{ font-family:'Fraunces',serif; font-weight:600; font-size:16px; }
+  @media (max-width:760px){
+    #special-stats{ display:none; }
+  }
+
+  /* ---------- HUD: аватар + S.P.E.C.I.A.L. (mobile-first) ---------- */
+  .hero-header{
+    display:flex; align-items:center; gap:12px;
+    padding:12px 12px 14px;
+    margin-bottom:14px;
+  }
+  .hero-avatar-col{
+    flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:6px;
+    width:84px;
+  }
+  .hero-avatar-ring{
+    position:relative; width:76px; height:76px; border-radius:50%;
+    padding:3px; box-sizing:border-box;
+    background: color-mix(in srgb, var(--teal) 35%, var(--line));
+    box-shadow: 0 0 0 1px var(--line);
+  }
+  .hero-avatar-ring img, .hero-avatar-fallback{
+    width:100%; height:100%; border-radius:50%; object-fit:cover; display:block;
+    background: var(--teal-dim);
+  }
+  .hero-avatar-fallback{
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Fraunces',serif; font-size:22px; color:var(--teal); font-weight:600;
+  }
+  .hero-lvl{
+    position:absolute; left:50%; bottom:-7px; transform:translateX(-50%);
+    background:var(--teal); color:#fff; border:2px solid var(--card);
+    font-size:10px; font-weight:700; letter-spacing:0.04em;
+    padding:2px 8px; border-radius:100px; white-space:nowrap; line-height:1.2;
+  }
+  .hero-xp-mini{ width:76px; height:4px; background:var(--line); border-radius:4px; overflow:hidden; }
+  .hero-xp-mini span{ display:block; height:100%; width:0; background:var(--teal); border-radius:4px; transition: width 0.45s ease-out; }
+  .hero-xp-label{ font-size:10px; color:var(--ink-faint); line-height:1; }
+  .hero-stats{
+    flex:1; min-width:0;
+    display:grid; grid-template-columns:repeat(7, 1fr); gap:4px;
+  }
+  .hero-stat{
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    padding:4px 0 5px; border-radius:10px;
+    min-width:0;
+  }
+  .hero-stat img{ width:22px; height:22px; border-radius:50%; object-fit:cover; }
+  .hero-stat .h-letter{ font-size:9px; font-weight:700; color:var(--teal); letter-spacing:0.03em; }
+  .hero-stat .h-val{ font-family:'Fraunces',serif; font-weight:600; font-size:14px; line-height:1.1; }
+  .hero-stat .h-bar{ width:100%; max-width:28px; height:3px; background:var(--line); border-radius:3px; overflow:hidden; }
+  .hero-stat .h-bar i{ display:block; height:100%; width:0; background:var(--teal); border-radius:3px; transition: width 0.45s ease-out; }
+  @media (prefers-reduced-motion: no-preference){
+    .hero-stat.pop .h-val{ animation: statPop 420ms ease-out; }
+    @keyframes statPop{
+      0%{ transform:scale(1); }
+      35%{ transform:scale(1.22); color:var(--coral); }
+      100%{ transform:scale(1); }
+    }
+    .hero-lvl.lvl-up{ animation: statPop 500ms ease-out; }
+  }
+  @media (max-width:380px){
+    .hero-avatar-col{ width:68px; }
+    .hero-avatar-ring{ width:64px; height:64px; }
+    .hero-xp-mini{ width:64px; }
+    .hero-stat img{ width:18px; height:18px; }
+    .hero-stat .h-val{ font-size:12.5px; }
+  }
+  @media (min-width:761px){
+    .hero-header{ padding:16px 18px; gap:18px; }
+    .hero-avatar-col{ width:104px; }
+    .hero-avatar-ring{ width:96px; height:96px; }
+    .hero-xp-mini{ width:96px; }
+    .hero-stat img{ width:28px; height:28px; }
+    .hero-stat .h-val{ font-size:16px; }
+    .hero-stat .h-bar{ max-width:36px; height:4px; }
+  }
+  [data-theme="techno"] .hero-header{
+    box-shadow:0 0 0 1px rgba(0,240,255,0.18), 0 0 28px rgba(123,47,247,0.16);
+  }
+  [data-theme="techno"] .hero-avatar-ring{
+    border-radius:22px;
+    background: linear-gradient(135deg, #00f0ff, #a56bff);
+    box-shadow: 0 0 18px rgba(0,240,255,0.45);
+  }
+  [data-theme="techno"] .hero-avatar-ring img,
+  [data-theme="techno"] .hero-avatar-fallback{ border-radius:19px; }
+  [data-theme="techno"] .hero-lvl{
+    background:#00f0ff; color:#0a0118;
+    box-shadow: 0 0 10px rgba(0,240,255,0.6);
+  }
+  [data-theme="steampunk"] .hero-header{ border-width:2px; }
+  [data-theme="steampunk"] .hero-avatar-ring{
+    border-radius:14px;
+    background: linear-gradient(145deg, #d4a017, #5c4530 55%, #b8860b);
+    box-shadow: inset 0 0 0 1px #f0dfc0, 0 2px 0 #1a1208;
+  }
+  [data-theme="steampunk"] .hero-avatar-ring img,
+  [data-theme="steampunk"] .hero-avatar-fallback{ border-radius:11px; }
+  [data-theme="steampunk"] .hero-lvl{
+    background:#b8860b; color:#241a10; border-color:#332415;
+    border-radius:6px;
+  }
 
 
   /* Завдання 4: skeleton-заглушка на час генерації LLM-звіту. */
@@ -254,9 +359,21 @@
       </span>
     </div>
   </div>
-  <div class="userbar" style="margin-bottom:18px;">
+  <div class="userbar" style="margin-bottom:12px;">
     <span id="user-email-display"></span>
     <button class="ghost small" id="btn-logout"></button>
+  </div>
+
+  <div class="card hero-header" id="hero-header" aria-label="S.P.E.C.I.A.L.">
+    <div class="hero-avatar-col">
+      <div class="hero-avatar-ring">
+        <img id="hero-avatar-img" src="/special/badge.jpg" alt="" width="96" height="96">
+        <span class="hero-lvl" id="hero-lvl">Lvl 1</span>
+      </div>
+      <div class="hero-xp-mini" aria-hidden="true"><span id="hero-xp-fill"></span></div>
+      <div class="hero-xp-label" id="hero-xp-label"></div>
+    </div>
+    <div class="hero-stats" id="hero-stats"></div>
   </div>
 
   <div class="grid">
@@ -435,6 +552,7 @@
       reportAuthError:'Технічна проблема на сервері зі звітами. Ми вже знаємо.',
       reportRetryBtn:'Спробувати ще раз',
       specialHeading:'Характеристики', specialLevel:lv=>`Рівень ${lv}`, specialXp:(xp,need)=>`${xp} / ${need} XP`,
+      specialLvlShort:lv=>`Lvl ${lv}`,
       statStrength:'Сила', statPerception:'Сприйняття', statEndurance:'Витривалість', statCharisma:'Харизма',
       statIntelligence:'Інтелект', statAgility:'Спритність', statLuck:'Удача',
       levelUp:lv=>`🎉 Новий рівень: ${lv}!`
@@ -495,6 +613,7 @@
       reportAuthError:'Server-side issue with reports. We are aware of it.',
       reportRetryBtn:'Try again',
       specialHeading:'Attributes', specialLevel:lv=>`Level ${lv}`, specialXp:(xp,need)=>`${xp} / ${need} XP`,
+      specialLvlShort:lv=>`Lvl ${lv}`,
       statStrength:'Strength', statPerception:'Perception', statEndurance:'Endurance', statCharisma:'Charisma',
       statIntelligence:'Intelligence', statAgility:'Agility', statLuck:'Luck',
       levelUp:lv=>`🎉 New level: ${lv}!`
@@ -781,9 +900,17 @@
 
   // ---------- Завдання 2: S.P.E.C.I.A.L. — SVG-радар без сторонніх бібліотек ----------
   async function fetchSpecialStats(){
-    const { data } = await sb.from('profiles')
-      .select('level, xp, strength, perception, endurance, charisma, intelligence, agility, luck')
+    const cols = 'level, xp, strength, perception, endurance, charisma, intelligence, agility, luck';
+    let { data, error } = await sb.from('profiles')
+      .select(cols + ', avatar_url')
       .eq('id', session.user.id).maybeSingle();
+    // Колонки avatar_url ще може не бути — тоді повтор без неї (мапінг лишаємо Клоду).
+    if(error){
+      const retry = await sb.from('profiles')
+        .select(cols)
+        .eq('id', session.user.id).maybeSingle();
+      data = retry.data;
+    }
     return data;
   }
 
@@ -854,6 +981,43 @@
   }
 
   let lastSpecialXp = null, lastSpecialLevel = null;
+  let lastHeroValues = null;
+
+  function renderHeroHeader(stats, statsArray){
+    const img = document.getElementById('hero-avatar-img');
+    const lvlEl = document.getElementById('hero-lvl');
+    const xpFill = document.getElementById('hero-xp-fill');
+    const xpLabel = document.getElementById('hero-xp-label');
+    const wrap = document.getElementById('hero-stats');
+    if(!img || !wrap) return;
+
+    const src = stats.avatar_url || '/special/badge.jpg';
+    if(img.getAttribute('src') !== src) img.src = src;
+
+    const xpNeeded = Math.max(1, stats.level * 100);
+    const pct = Math.min(100, Math.round((stats.xp / xpNeeded) * 100));
+    lvlEl.textContent = t('specialLvlShort')(stats.level);
+    if(lastSpecialLevel !== null && stats.level > lastSpecialLevel){
+      lvlEl.classList.remove('lvl-up');
+      void lvlEl.offsetWidth;
+      lvlEl.classList.add('lvl-up');
+    }
+    xpFill.style.width = pct + '%';
+    xpLabel.textContent = t('specialXp')(stats.xp, xpNeeded);
+
+    const cap = Math.max(10, ...statsArray.map(s => s.value || 0));
+    wrap.innerHTML = statsArray.map(s => {
+      const bar = Math.min(100, Math.round((s.value / cap) * 100));
+      const popped = lastHeroValues && lastHeroValues[s.letter] !== s.value ? ' pop' : '';
+      return `<div class="hero-stat${popped}" title="${esc(s.label)}">
+        <img src="${s.icon}" width="28" height="28" alt="">
+        <span class="h-letter">${s.letter}</span>
+        <span class="h-val">${s.value}</span>
+        <span class="h-bar"><i style="width:${bar}%"></i></span>
+      </div>`;
+    }).join('');
+    lastHeroValues = Object.fromEntries(statsArray.map(s => [s.letter, s.value]));
+  }
 
   async function renderSpecial(){
     const stats = await fetchSpecialStats();
@@ -867,6 +1031,7 @@
       { letter:'A', label: t('statAgility'), value: stats.agility, icon:'/special/agility.jpg' },
       { letter:'L', label: t('statLuck'), value: stats.luck, icon:'/special/luck.jpg' }
     ];
+    renderHeroHeader(stats, statsArray);
     renderSpecialRadar(statsArray, 'special-radar');
 
     const statsWrap = document.getElementById('special-stats');
