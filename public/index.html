@@ -10,6 +10,7 @@
 <meta name="theme-color" content="#3e7c74">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="/idb-queue.js"></script>
+<script src="/stat-map.js"></script>
 <style>
   :root{
     --bg:#f4f5f2; --card:#ffffff; --ink:#1f2430; --ink-dim:#666c7a; --ink-faint:#9aa0ac;
@@ -71,6 +72,27 @@
   .presets{display:flex;gap:6px;margin-top:8px;}
   .empty{color:var(--ink-faint);font-size:13.5px;padding:10px 0;}
   .lock-note{font-size:12.5px;color:var(--coral);background:var(--coral-dim);border-radius:8px;padding:8px 10px;margin-top:10px;}
+  .stat-hint{font-size:12px;margin-top:8px;min-height:1.3em;line-height:1.4;}
+  .stat-hint.warn{color:#8a5a1f;background:#f6ead4;border-radius:8px;padding:7px 10px;}
+  .stat-hint.ok{color:var(--teal);}
+  .stat-hint .chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
+  .stat-chip-mini{display:inline-flex;align-items:center;gap:4px;font-size:11px;border:1px solid var(--line);
+    border-radius:100px;padding:2px 8px;background:var(--teal-dim);color:var(--teal);font-weight:600;}
+  .award-modal{position:fixed;inset:0;background:rgba(31,36,48,.45);z-index:50;display:none;
+    align-items:center;justify-content:center;padding:20px;}
+  .award-modal.open{display:flex;}
+  .award-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 20px;
+    max-width:380px;width:100%;}
+  .award-card h3{font-family:'Fraunces',serif;margin:0 0 12px;font-size:20px;}
+  .award-stat{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);}
+  .award-stat img{width:32px;height:32px;border-radius:50%;object-fit:cover;}
+  .award-stat .name{flex:1;font-size:13.5px;}
+  .award-stat .lvl{font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--ink-faint);}
+  .award-stat .lvl.up{color:var(--coral);}
+  @media (prefers-reduced-motion: no-preference){
+    .award-stat .lvl.up{ animation: statPop 500ms ease-out; }
+    @keyframes statPop{ 0%{transform:scale(1)} 40%{transform:scale(1.18)} 100%{transform:scale(1)} }
+  }
   .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   .stat{border-top:1px solid var(--line);padding-top:8px;}
   .stat .k{font-size:11.5px;color:var(--ink-faint);}
@@ -273,19 +295,11 @@
         </div>
         <div id="timeline"></div>
         <div class="add-row">
-          <input type="text" id="task-name">
-          <select id="task-category">
-            <option value="work"></option><option value="personal"></option><option value="health"></option><option value="agility"></option><option value="habit"></option><option value="other" selected></option>
-          </select>
+          <input type="text" id="task-name" autocomplete="off">
           <input type="number" id="task-min" min="5" step="5" value="30">
           <button class="primary" id="btn-add"></button>
         </div>
-        <div class="add-row" style="margin-top:8px;">
-          <label id="target-stat-label" style="font-size:12px;color:var(--ink-dim);align-self:center;"></label>
-          <select id="task-target-stat">
-            <option value="" id="target-stat-auto-option"></option>
-          </select>
-        </div>
+        <div class="stat-hint" id="task-stat-hint" aria-live="polite"></div>
         <div class="presets">
           <button type="button" class="preset" data-min="15">15</button>
           <button type="button" class="preset" data-min="30">30</button>
@@ -362,6 +376,13 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
+<div class="award-modal" id="award-modal" role="dialog" aria-modal="true" aria-labelledby="award-title">
+  <div class="award-card">
+    <h3 id="award-title"></h3>
+    <div id="award-body"></div>
+    <button class="primary" id="award-close" style="width:100%;margin-top:16px;"></button>
+  </div>
+</div>
 
 <script>
 (function(){
@@ -399,6 +420,12 @@
       targetStatLabel:'Характеристика (опційно):', targetStatAuto:'Авто (за категорією)',
       minUnit:'хв', presetLabel:n=>`${n} хв`,
       emptyTimeline:'Ще немає завдань на сьогодні.',
+      noStatBenefit:'Ця справа не принесе жодної користі твоїм характеристикам.',
+      statMapped:'Прокачає:',
+      awardTitle:'Завдання завершено',
+      awardClose:'Далі',
+      awardProgress:'прогрес',
+      awardLevelUp:'LEVEL UP',
       startBtn:'Почати', removeBtn:'Прибрати', pauseBtn:'Пауза', resumeBtn:'Продовжити',
       completeBtn:n=>`Завершити (${n} хв)`, saveBtn:'Зберегти', cancelBtn:'Скасувати', editHint:' ✎',
       metaPending:n=>`${n} хв`,
@@ -460,6 +487,12 @@
       targetStatLabel:'Attribute (optional):', targetStatAuto:'Auto (by category)',
       minUnit:'min', presetLabel:n=>`${n} min`,
       emptyTimeline:'No tasks for today yet.',
+      noStatBenefit:'This task will not improve any of your attributes.',
+      statMapped:'Will train:',
+      awardTitle:'Task complete',
+      awardClose:'Continue',
+      awardProgress:'progress',
+      awardLevelUp:'LEVEL UP',
       startBtn:'Start', removeBtn:'Remove', pauseBtn:'Pause', resumeBtn:'Resume',
       completeBtn:n=>`Complete (${n} min)`, saveBtn:'Save', cancelBtn:'Cancel', editHint:' ✎',
       metaPending:n=>`${n} min`,
@@ -513,6 +546,69 @@
   const TARGET_STAT_OPTIONS = ['strength','perception','endurance','charisma','intelligence','agility','luck'];
   const STAT_LABEL_KEYS = { strength:'statStrength', perception:'statPerception', endurance:'statEndurance',
     charisma:'statCharisma', intelligence:'statIntelligence', agility:'statAgility', luck:'statLuck' };
+  const STAT_ICONS = {
+    strength:'/special/strength.jpg', perception:'/special/perception.jpg', endurance:'/special/endurance.jpg',
+    charisma:'/special/charisma.jpg', intelligence:'/special/intelligence.jpg', agility:'/special/agility.jpg',
+    luck:'/special/luck.jpg'
+  };
+
+  function mapName(name){
+    return window.dayflowMap.mapTaskName(name);
+  }
+
+  function renderStatHint(el, mapped){
+    if(!el) return;
+    if(!mapped || !String(mapped._raw || '').trim()){
+      // caller passes mapped + optional raw via we check hits
+    }
+    if(!mapped.matched){
+      el.className = 'stat-hint warn';
+      el.textContent = t('noStatBenefit');
+      return;
+    }
+    const chips = Object.keys(mapped.weights)
+      .filter(k => Number(mapped.weights[k]) > 0)
+      .map(k => `<span class="stat-chip-mini"><img src="${STAT_ICONS[k]}" width="14" height="14" alt="" style="border-radius:50%;"> ${esc(t(STAT_LABEL_KEYS[k]))} ${Math.round(mapped.weights[k]*100)}%</span>`)
+      .join('');
+    el.className = 'stat-hint ok';
+    el.innerHTML = `${t('statMapped')} <span class="chips">${chips}</span>`;
+  }
+
+  function pauseOtherActive(exceptId){
+    state.tasks.forEach(t => {
+      if(t.id !== exceptId && t.status === 'active'){
+        t.accumulatedMin = elapsedMinutes(t);
+        t.status = 'paused';
+        t.startedAt = null;
+      }
+    });
+  }
+
+  function openAwardModal(rpcData){
+    const modal = document.getElementById('award-modal');
+    const body = document.getElementById('award-body');
+    document.getElementById('award-title').textContent = t('awardTitle');
+    document.getElementById('award-close').textContent = t('awardClose');
+    const touched = rpcData?.stats_touched || {};
+    const keys = Object.keys(touched);
+    if(keys.length === 0){
+      body.innerHTML = `<p class="stat-hint warn" style="margin:0;">${t('noStatBenefit')}</p>`;
+    } else {
+      body.innerHTML = keys.map(k => {
+        const gained = Number(touched[k]) || 0;
+        const up = gained >= 1;
+        return `<div class="award-stat">
+          <img src="${STAT_ICONS[k]||''}" alt="">
+          <div class="name">${esc(t(STAT_LABEL_KEYS[k]||k))}</div>
+          <div class="lvl${up?' up':''}">${up ? '🔥 ' + t('awardLevelUp') + (gained>1?' ×'+gained:'') : t('awardProgress')}</div>
+        </div>`;
+      }).join('');
+    }
+    if(rpcData?.leveled_up){
+      body.insertAdjacentHTML('afterbegin', `<p style="margin:0 0 10px;color:var(--coral);font-weight:600;">${t('levelUp')(rpcData.new_level)}</p>`);
+    }
+    modal.classList.add('open');
+  }
 
   let lang = localStorage.getItem('dayflow:lang') || 'uk';
   function t(key){ return STR[lang][key]; }
@@ -688,18 +784,19 @@
   function rowToTask(row){
     return { id:row.id, name:row.name, plannedMin:row.planned_min, actualMin:row.actual_min,
       accumulatedMin: Number(row.accumulated_min)||0, category:row.category, status:row.status, startedAt:row.started_at,
-      hardStart: row.start_time || null, hardEnd: row.end_time || null, targetStat: row.target_stat || null };
+      hardStart: row.start_time || null, hardEnd: row.end_time || null,
+      statWeights: (row.stat_weights && typeof row.stat_weights === 'object') ? row.stat_weights : { luck: 0 } };
   }
   async function upsertTask(task){
     const { error } = await sb.from('tasks').upsert({
       id: task.id, user_id: session.user.id, day: todayKey(), name: task.name,
       planned_min: task.plannedMin, actual_min: task.actualMin, accumulated_min: task.accumulatedMin,
-      category: task.category, status: task.status, started_at: task.startedAt,
+      category: task.category || 'other', status: task.status, started_at: task.startedAt,
       start_time: task.hardStart || null, end_time: task.hardEnd || null,
-      target_stat: task.targetStat || null,
+      stat_weights: task.statWeights && Object.keys(task.statWeights).length ? task.statWeights : { luck: 0 },
       position: state.tasks.findIndex(x=>x.id===task.id)
     });
-    if(error) throw error; // інакше блок від DB-тригера (ліміт/конфлікт часу) тихо ігнорується
+    if(error) throw error;
   }
   async function deleteTaskRow(id){ await sb.from('tasks').delete().eq('id', id); }
   async function resyncPositions(){
@@ -982,22 +1079,6 @@
     document.getElementById('btn-logout').textContent = t('logout');
     document.getElementById('user-email-display').textContent = session?.user?.email || '';
 
-    const catSelect = document.getElementById('task-category');
-    Object.keys(CATEGORY_KEYS).forEach((k,i)=>{ catSelect.options[i].textContent = t(CATEGORY_KEYS[k]); catSelect.options[i].value = k; });
-
-    document.getElementById('target-stat-label').textContent = t('targetStatLabel');
-    const statSelect = document.getElementById('task-target-stat');
-    document.getElementById('target-stat-auto-option').textContent = t('targetStatAuto');
-    // Прибираємо всі опції характеристик, крім першої ("Авто"), і будуємо заново —
-    // так само коректно спрацює і при першому рендері, і при зміні мови.
-    while(statSelect.options.length > 1) statSelect.remove(1);
-    TARGET_STAT_OPTIONS.forEach(stat=>{
-      const opt = document.createElement('option');
-      opt.value = stat;
-      opt.textContent = t(STAT_LABEL_KEYS[stat]);
-      statSelect.appendChild(opt);
-    });
-
     document.querySelectorAll('.preset').forEach(btn=>{ btn.textContent = t('presetLabel')(btn.dataset.min); });
     document.getElementById('lang-uk').classList.toggle('active', lang==='uk');
     document.getElementById('lang-en').classList.toggle('active', lang==='en');
@@ -1054,20 +1135,17 @@
       const cls=['block']; if(task.status==='active')cls.push('active'); if(task.status==='paused')cls.push('paused'); if(task.status==='done')cls.push('done'); if(overrun)cls.push('overrun');
       const dot = `<span class="cat-dot" style="background:${CATEGORY_COLORS[task.category]||CATEGORY_COLORS.other};"></span>`;
       if(editingId===task.id){
+        const mapped = window.dayflowMap.mapTaskName(task.name);
+        const hint = mapped.matched
+          ? ''
+          : `<div class="stat-hint warn" style="margin-top:8px;">${t('noStatBenefit')}</div>`;
         return `<div class="${cls.join(' ')}" data-task-id="${task.id}"><div class="edit-row">
           <input type="text" id="edit-name-${task.id}" value="${esc(task.name)}">
-          <select id="edit-cat-${task.id}">${Object.keys(CATEGORY_KEYS).map(k=>`<option value="${k}" ${task.category===k?'selected':''}>${t(CATEGORY_KEYS[k])}</option>`).join('')}</select>
           <input type="number" id="edit-min-${task.id}" value="${task.plannedMin}" min="5" step="5">
           <button class="primary" data-action="save-edit" data-id="${task.id}">${t('saveBtn')}</button>
           <button class="ghost" data-action="cancel-edit" data-id="${task.id}">${t('cancelBtn')}</button>
         </div>
-        <div class="edit-row" style="margin-top:6px;">
-          <label style="font-size:11.5px;color:var(--ink-faint);align-self:center;">${t('targetStatLabel')}</label>
-          <select id="edit-stat-${task.id}">
-            <option value="" ${!task.targetStat?'selected':''}>${t('targetStatAuto')}</option>
-            ${TARGET_STAT_OPTIONS.map(s=>`<option value="${s}" ${task.targetStat===s?'selected':''}>${t(STAT_LABEL_KEYS[s])}</option>`).join('')}
-          </select>
-        </div>
+        ${hint}
         <div class="edit-row" style="margin-top:6px;">
           <label style="font-size:11.5px;color:var(--ink-faint);align-self:center;">${t('hardTimeLabel')}</label>
           <input type="datetime-local" id="edit-start-${task.id}" value="${toLocalDatetimeValue(task.hardStart)}">
@@ -1242,20 +1320,26 @@
   }));
 
   document.getElementById('btn-add').addEventListener('click', async ()=>{
-    const nameInput=document.getElementById('task-name'), minInput=document.getElementById('task-min'), catInput=document.getElementById('task-category');
-    const statInput=document.getElementById('task-target-stat');
+    const nameInput=document.getElementById('task-name'), minInput=document.getElementById('task-min');
     const name=nameInput.value.trim(), min=parseInt(minInput.value,10);
     if(!name){ showToast(t('enterTaskName')); return; }
     if(!min||min<5){ showToast(t('minDuration')); return; }
     if(!state.premium && state.tasks.length>=FREE_TASK_LIMIT){ showToast(t('dailyLimit')); return; }
-    const task = {id:'t'+Date.now(), name, plannedMin:min, category:catInput.value, targetStat: statInput.value || null, status:'pending', actualMin:0, accumulatedMin:0, startedAt:null};
-    state.tasks.push(task); nameInput.value=''; statInput.value='';
+    const mapped = mapName(name);
+    const task = {
+      id:'t'+Date.now(), name, plannedMin:min,
+      category: mapped.category || 'other',
+      statWeights: mapped.weights,
+      status:'pending', actualMin:0, accumulatedMin:0, startedAt:null
+    };
+    state.tasks.push(task); nameInput.value='';
+    renderStatHint(document.getElementById('task-stat-hint'), { matched:false, weights:{luck:0} });
+    document.getElementById('task-stat-hint').className='stat-hint';
+    document.getElementById('task-stat-hint').textContent='';
     renderFast();
     try{ await upsertTask(task); }
     catch(err){
       state.tasks = state.tasks.filter(x=>x.id!==task.id); renderFast();
-      // Тригер на сервері заблокував (напр. інша вкладка вже вичерпала ліміт) —
-      // повідомлення точніше за загальний connError.
       showToast(/Ліміт/.test(err.message||'') ? t('dailyLimit') : t('connError'));
       return;
     }
@@ -1265,8 +1349,22 @@
   document.getElementById('day-start').addEventListener('change', async (e)=>{ state.dayStart=e.target.value; await saveDaySettings(); await renderAll(); });
 
   // Гарячі клавіші: Enter у полі назви — додати завдання; Space (поза полями вводу) — почати/завершити.
+  document.getElementById('task-name').addEventListener('input', ()=>{
+    const raw = document.getElementById('task-name').value;
+    const hint = document.getElementById('task-stat-hint');
+    if(!raw.trim()){ hint.className='stat-hint'; hint.textContent=''; return; }
+    renderStatHint(hint, mapName(raw));
+  });
   document.getElementById('task-name').addEventListener('keydown', (e)=>{
     if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('btn-add').click(); }
+  });
+
+  document.getElementById('award-close').addEventListener('click', async ()=>{
+    document.getElementById('award-modal').classList.remove('open');
+    await renderSpecial();
+  });
+  document.getElementById('award-modal').addEventListener('click', (e)=>{
+    if(e.target.id === 'award-modal') document.getElementById('award-close').click();
   });
   document.addEventListener('keydown', (e)=>{
     const tag = (document.activeElement && document.activeElement.tagName || '').toLowerCase();
@@ -1302,7 +1400,8 @@
       let added=0, blocked=0;
       for(const x of tpl.tasks){
         if(!state.premium && state.tasks.length>=FREE_TASK_LIMIT){ blocked++; continue; }
-        const task = {id:'t'+Date.now()+Math.random().toString(36).slice(2,5), name:x.name, plannedMin:x.plannedMin, category:x.category||'other', status:'pending', actualMin:0, accumulatedMin:0, startedAt:null};
+        const mapped = mapName(x.name);
+        const task = {id:'t'+Date.now()+Math.random().toString(36).slice(2,5), name:x.name, plannedMin:x.plannedMin, category: mapped.category, statWeights: mapped.weights, status:'pending', actualMin:0, accumulatedMin:0, startedAt:null};
         state.tasks.push(task); await upsertTask(task); added++;
       }
       await renderAll();
@@ -1324,16 +1423,15 @@
     if(action==='save-edit'){
       const newName=document.getElementById('edit-name-'+id).value.trim();
       const newMin=parseInt(document.getElementById('edit-min-'+id).value,10);
-      const newCat=document.getElementById('edit-cat-'+id).value;
-      const newStat=document.getElementById('edit-stat-'+id).value || null;
       const startInput=document.getElementById('edit-start-'+id).value;
       const endInput=document.getElementById('edit-end-'+id).value;
       if(!newName){ showToast(t('nameEmpty')); return; }
       if(!newMin||newMin<5){ showToast(t('minInvalid')); return; }
       if((startInput && !endInput) || (!startInput && endInput)){ showToast(t('hardTimeBothRequired')); return; }
 
+      const mapped = mapName(newName);
       const task = state.tasks[idx];
-      task.name=newName; task.plannedMin=newMin; task.category=newCat; task.targetStat=newStat; editingId=null;
+      task.name=newName; task.plannedMin=newMin; task.category=mapped.category; task.statWeights=mapped.weights; editingId=null;
       renderFast();
       try{ await upsertTask(task); }catch(err){ showToast(t('connError')); }
 
@@ -1367,17 +1465,18 @@
     }
 
     const task=state.tasks[idx];
-    if(action==='start'){
-      task.status='active'; task.startedAt=Date.now(); task.accumulatedMin=0;
+    if(action==='start' || action==='resume'){
+      pauseOtherActive(id);
+      if(action==='start'){
+        task.status='active'; task.startedAt=Date.now(); task.accumulatedMin=0;
+      } else {
+        task.status='active'; task.startedAt=Date.now();
+      }
       if(audioEnabled) startBinauralBeat(BASE_FREQ, BEAT_FREQ, audioVolume);
     }
     else if(action==='pause'){
       task.accumulatedMin=elapsedMinutes(task); task.status='paused'; task.startedAt=null;
       stopSound();
-    }
-    else if(action==='resume'){
-      task.status='active'; task.startedAt=Date.now();
-      if(audioEnabled) startBinauralBeat(BASE_FREQ, BEAT_FREQ, audioVolume);
     }
     else if(action==='complete'){
       task.status='done'; task.actualMin=Math.max(1,Math.round(elapsedMinutes(task)));
@@ -1402,8 +1501,8 @@
           if(!/вже нараховано/.test(error.message || '')){ throw error; }
           // Гонитва подвійного кліку: завдання вже фактично виконане на сервері —
           // локальний стан і так правильний, просто не відкочуємо його.
-        } else if(data?.leveled_up){
-          showToast(t('levelUp')(data.new_level));
+        } else {
+          openAwardModal(data || {});
         }
         await renderSpecial();
       } else {
