@@ -84,14 +84,38 @@
   .award-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 20px;
     max-width:380px;width:100%;}
   .award-card h3{font-family:'Fraunces',serif;margin:0 0 12px;font-size:20px;}
-  .award-stat{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);}
-  .award-stat img{width:32px;height:32px;border-radius:50%;object-fit:cover;}
-  .award-stat .name{flex:1;font-size:13.5px;}
-  .award-stat .lvl{font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--ink-faint);}
-  .award-stat .lvl.up{color:var(--coral);}
+  .award-stat{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);}
+  .award-stat:first-child{border-top:none;}
+  .award-stat img{width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;}
+  .award-stat .name{flex:1;font-size:13.5px;min-width:0;}
+  .award-stat .val{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink-dim);white-space:nowrap;}
+  .award-bar{width:100%;height:3px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:5px;}
+  .award-bar i{display:block;height:100%;width:0;background:var(--teal);border-radius:3px;}
+  .level-up-text{
+    font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    color:#b8860b;
+    text-shadow:0 0 8px rgba(184,134,11,.45);
+  }
+  [data-theme="techno"] .level-up-text{
+    color:#00f0ff; text-shadow:0 0 10px rgba(0,240,255,.65);
+  }
+  [data-theme="steampunk"] .level-up-text{
+    color:#e2c36a; text-shadow:0 0 8px rgba(226,195,106,.4);
+  }
   @media (prefers-reduced-motion: no-preference){
-    .award-stat .lvl.up{ animation: statPop 500ms ease-out; }
-    @keyframes statPop{ 0%{transform:scale(1)} 40%{transform:scale(1.18)} 100%{transform:scale(1)} }
+    .level-up-text{ animation: levelUpPulse 1.6s ease-in-out infinite; }
+    @keyframes levelUpPulse{
+      0%,100%{ opacity:1; filter:brightness(1); }
+      50%{ opacity:.82; filter:brightness(1.28); }
+    }
+    .award-stat{ opacity:0; transform:translateY(8px); animation: awardIn 280ms ease-out forwards; }
+    .award-stat:nth-child(1){ animation-delay:40ms; }
+    .award-stat:nth-child(2){ animation-delay:120ms; }
+    .award-stat:nth-child(3){ animation-delay:200ms; }
+    .award-stat:nth-child(4){ animation-delay:280ms; }
+    .award-stat:nth-child(5){ animation-delay:360ms; }
+    @keyframes awardIn{ to{ opacity:1; transform:none; } }
+    .award-bar i{ transition: width 480ms ease-out; }
   }
   .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   .stat{border-top:1px solid var(--line);padding-top:8px;}
@@ -426,6 +450,7 @@
       awardClose:'Далі',
       awardProgress:'прогрес',
       awardLevelUp:'LEVEL UP',
+      levelUpText:'Підвищення!',
       startBtn:'Почати', removeBtn:'Прибрати', pauseBtn:'Пауза', resumeBtn:'Продовжити',
       completeBtn:n=>`Завершити (${n} хв)`, saveBtn:'Зберегти', cancelBtn:'Скасувати', editHint:' ✎',
       metaPending:n=>`${n} хв`,
@@ -493,6 +518,7 @@
       awardClose:'Continue',
       awardProgress:'progress',
       awardLevelUp:'LEVEL UP',
+      levelUpText:'Level up!',
       startBtn:'Start', removeBtn:'Remove', pauseBtn:'Pause', resumeBtn:'Resume',
       completeBtn:n=>`Complete (${n} min)`, saveBtn:'Save', cancelBtn:'Cancel', editHint:' ✎',
       metaPending:n=>`${n} min`,
@@ -584,25 +610,52 @@
     });
   }
 
-  function openAwardModal(rpcData){
+  function openAwardModal(rpcData, task, beforeProfile){
     const modal = document.getElementById('award-modal');
     const body = document.getElementById('award-body');
     document.getElementById('award-title').textContent = t('awardTitle');
     document.getElementById('award-close').textContent = t('awardClose');
+
+    const progressFn = (window.dayflowMap && window.dayflowMap.getStatProgress)
+      || function(m){ const n=Math.max(0,Number(m)||0); return { level:Math.floor(n/60), percent:Math.min(100,Math.round((n%60)/60*100)) }; };
+
+    const weights = (task && task.statWeights) || {};
+    const leftover = (beforeProfile && beforeProfile.stat_progress) || {};
+    const actual = Math.max(0, Number(task && task.actualMin) || 0);
     const touched = rpcData?.stats_touched || {};
-    const keys = Object.keys(touched);
-    if(keys.length === 0){
+
+    const rows = Object.keys(weights).filter(k => {
+      const w = Number(weights[k]) || 0;
+      if (w <= 0) return false;
+      const gainedLevels = Number(touched[k]);
+      const added = actual * w;
+      return added > 0 || (Number.isFinite(gainedLevels) && gainedLevels > 0);
+    });
+
+    if(rows.length === 0){
       body.innerHTML = `<p class="stat-hint warn" style="margin:0;">${t('noStatBenefit')}</p>`;
     } else {
-      body.innerHTML = keys.map(k => {
-        const gained = Number(touched[k]) || 0;
-        const up = gained >= 1;
+      body.innerHTML = rows.map(k => {
+        const oldMin = Number(leftover[k]) || 0;
+        const added = actual * (Number(weights[k]) || 0);
+        const oldState = progressFn(oldMin);
+        const newState = progressFn(oldMin + added);
+        const leveled = newState.level > oldState.level || (Number(touched[k]) || 0) >= 1;
+        const right = leveled
+          ? `<span class="level-up-text">${t('levelUpText')}</span>`
+          : `${newState.percent}%`;
+        const barPct = leveled ? 100 : newState.percent;
         return `<div class="award-stat">
           <img src="${STAT_ICONS[k]||''}" alt="">
-          <div class="name">${esc(t(STAT_LABEL_KEYS[k]||k))}</div>
-          <div class="lvl${up?' up':''}">${up ? '🔥 ' + t('awardLevelUp') + (gained>1?' ×'+gained:'') : t('awardProgress')}</div>
+          <div class="name">${esc(t(STAT_LABEL_KEYS[k]||k))}
+            <div class="award-bar" aria-hidden="true"><i data-w="${barPct}"></i></div>
+          </div>
+          <div class="val">${right}</div>
         </div>`;
       }).join('');
+      requestAnimationFrame(()=>{
+        body.querySelectorAll('.award-bar i').forEach(el=>{ el.style.width = el.dataset.w + '%'; });
+      });
     }
     if(rpcData?.leveled_up){
       body.insertAdjacentHTML('afterbegin', `<p style="margin:0 0 10px;color:var(--coral);font-weight:600;">${t('levelUp')(rpcData.new_level)}</p>`);
@@ -895,9 +948,14 @@
 
   // ---------- Завдання 2: S.P.E.C.I.A.L. — SVG-радар без сторонніх бібліотек ----------
   async function fetchSpecialStats(){
-    const { data } = await sb.from('profiles')
-      .select('level, xp, strength, perception, endurance, charisma, intelligence, agility, luck')
+    const cols = 'level, xp, strength, perception, endurance, charisma, intelligence, agility, luck';
+    let { data, error } = await sb.from('profiles')
+      .select(cols + ', stat_progress')
       .eq('id', session.user.id).maybeSingle();
+    if(error){
+      const retry = await sb.from('profiles').select(cols).eq('id', session.user.id).maybeSingle();
+      data = retry.data;
+    }
     return data;
   }
 
@@ -1492,17 +1550,14 @@
     try{
       if(action==='up'||action==='down'){ await resyncPositions(); }
       if(action==='complete'){
-        // Безпечний шлях: RPC сама позначає завдання виконаним і нараховує XP
-        // атомарно, з захистом від подвійного нарахування (migration_004).
+        const beforeProfile = await fetchSpecialStats();
         const { data, error } = await sb.rpc('complete_task_and_award_xp', {
           p_task_id: id, p_actual_min: task.actualMin
         });
         if(error){
           if(!/вже нараховано/.test(error.message || '')){ throw error; }
-          // Гонитва подвійного кліку: завдання вже фактично виконане на сервері —
-          // локальний стан і так правильний, просто не відкочуємо його.
         } else {
-          openAwardModal(data || {});
+          openAwardModal(data || {}, task, beforeProfile);
         }
         await renderSpecial();
       } else {

@@ -157,5 +157,14 @@
     return Object.keys(weights).every(k => Number(weights[k]) === 0);
   }
 
-  root.dayflowMap = { dictionary, mapTaskName, isZeroBenefit, STATS, ZERO_WEIGHTS, dominantStat };
+  // 60 хв зваженого часу = 1 рівень характеристики (migration_009).
+  function getStatProgress(totalMinutes) {
+    const m = Math.max(0, Number(totalMinutes) || 0);
+    const level = Math.floor(m / 60);
+    const into = m - level * 60;
+    const percent = Math.min(100, Math.round((into / 60) * 100));
+    return { level, percent, into };
+  }
+
+  root.dayflowMap = { dictionary, mapTaskName, isZeroBenefit, STATS, ZERO_WEIGHTS, dominantStat, getStatProgress };
 })(typeof self !== 'undefined' ? self : this);
