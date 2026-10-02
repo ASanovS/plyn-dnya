@@ -173,6 +173,32 @@
   .gate-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:28px;max-width:380px;width:100%;text-align:center;}
   .gate-card h1{font-size:24px;}
   .userbar{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-dim);}
+  .userbar .ub-avatar{width:28px;height:28px;border-radius:50%;object-fit:cover;background:var(--teal-dim);flex-shrink:0;}
+  .userbar .ub-name{color:var(--ink);font-weight:600;font-size:13px;}
+  .rest-card{background:var(--teal-dim);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:0 0 14px;
+    display:flex;flex-direction:column;gap:4px;}
+  .rest-card[hidden]{display:none !important;}
+  .rest-kicker{font-size:13px;color:var(--ink-dim);}
+  .rest-count{font-family:'Fraunces',serif;font-size:28px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:.02em;color:var(--teal);}
+  .rest-card.out{opacity:0;transform:translateY(-6px);transition:opacity 280ms ease, transform 280ms ease;}
+  .settings-modal{position:fixed;inset:0;background:rgba(31,36,48,.45);z-index:55;display:none;align-items:flex-end;justify-content:center;padding:0;}
+  .settings-modal.open{display:flex;}
+  .settings-card{background:var(--card);border:1px solid var(--line);border-radius:16px 16px 0 0;padding:20px 18px 28px;
+    max-width:480px;width:100%;max-height:92vh;overflow:auto;}
+  @media (min-width:640px){
+    .settings-modal{align-items:center;padding:20px;}
+    .settings-card{border-radius:16px;max-height:86vh;}
+  }
+  .settings-card h3{font-family:'Fraunces',serif;margin:0 0 16px;font-size:20px;}
+  .set-block{margin-bottom:18px;}
+  .set-block h4{margin:0 0 8px;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-faint);}
+  .set-row{display:flex;gap:10px;align-items:center;margin-bottom:8px;}
+  .set-row label{font-size:13px;color:var(--ink-dim);min-width:7.5em;}
+  .set-row input[type=text], .set-row input[type=time]{
+    flex:1;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:14px;background:var(--card);color:var(--ink);}
+  .avatar-edit{display:flex;align-items:center;gap:12px;}
+  .avatar-edit img, .avatar-ph{width:64px;height:64px;border-radius:50%;object-fit:cover;background:var(--teal-dim);border:1px solid var(--line);}
+  .avatar-ph{display:flex;align-items:center;justify-content:center;color:var(--ink-faint);font-size:22px;}
 
   .audio-controls{display:flex;align-items:center;gap:10px;margin:0 0 14px;}
   .audio-controls input[type=range]{width:100px;accent-color:var(--teal);}
@@ -293,14 +319,12 @@
       <span class="offline-badge" id="offline-badge" style="display:none;"></span>
       <span class="plan-badge" id="plan-badge"></span>
       <span class="lang-toggle"><button id="lang-uk" data-lang="uk">UA</button><button id="lang-en" data-lang="en">EN</button></span>
-      <span class="theme-toggle">
-        <button id="theme-classic" data-theme="">◐</button>
-        <button id="theme-techno" data-theme="techno">⚡</button>
-        <button id="theme-steampunk" data-theme="steampunk">⚙</button>
-      </span>
+      <button class="ghost small" id="btn-settings" type="button">⚙</button>
     </div>
   </div>
   <div class="userbar" style="margin-bottom:18px;">
+    <img class="ub-avatar" id="ub-avatar" alt="" hidden>
+    <span class="ub-name" id="ub-name"></span>
     <span id="user-email-display"></span>
     <button class="ghost small" id="btn-logout"></button>
   </div>
@@ -310,7 +334,11 @@
       <div class="card" id="section-today">
         <div class="day-header">
           <h2 id="today-heading" style="margin:0;"></h2>
-          <div class="start-time"><span id="day-start-label"></span> <input type="time" id="day-start" value="09:00"></div>
+          <div class="start-time"><span id="day-bounds-label"></span></div>
+        </div>
+        <div class="rest-card" id="rest-card" hidden>
+          <div class="rest-kicker" id="rest-kicker"></div>
+          <div class="rest-count" id="rest-count">00:00:00</div>
         </div>
         <div class="projected" id="projected-end"></div>
         <div class="audio-controls">
@@ -407,7 +435,47 @@
     <button class="primary" id="award-close" style="width:100%;margin-top:16px;"></button>
   </div>
 </div>
-
+<div class="settings-modal" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+  <div class="settings-card">
+    <h3 id="settings-title"></h3>
+    <div class="set-block">
+      <h4 id="set-profile-h"></h4>
+      <div class="avatar-edit">
+        <img id="set-avatar-img" alt="" hidden>
+        <div class="avatar-ph" id="set-avatar-ph">+</div>
+        <div>
+          <button class="ghost small" type="button" id="btn-avatar-pick"></button>
+          <input type="file" id="set-avatar-file" accept="image/*" hidden>
+        </div>
+      </div>
+      <div class="set-row" style="margin-top:10px;">
+        <label id="set-name-label" for="set-display-name"></label>
+        <input type="text" id="set-display-name" maxlength="40" autocomplete="nickname">
+      </div>
+    </div>
+    <div class="set-block">
+      <h4 id="set-schedule-h"></h4>
+      <div class="set-row">
+        <label id="day-start-label" for="day-start"></label>
+        <input type="time" id="day-start" value="09:00">
+      </div>
+      <div class="set-row">
+        <label id="day-end-label" for="day-end"></label>
+        <input type="time" id="day-end" value="23:00">
+      </div>
+    </div>
+    <div class="set-block">
+      <h4 id="set-theme-h"></h4>
+      <span class="theme-toggle">
+        <button id="theme-classic" data-theme="" type="button">◐</button>
+        <button id="theme-techno" data-theme="techno" type="button">⚡</button>
+        <button id="theme-steampunk" data-theme="steampunk" type="button">⚙</button>
+      </span>
+    </div>
+    <button class="primary" id="settings-save" style="width:100%;"></button>
+    <button class="ghost" id="settings-close" style="width:100%;margin-top:8px;"></button>
+  </div>
+</div>
 <script>
 (function(){
   const FREE_TASK_LIMIT = 3;
@@ -439,6 +507,16 @@
       freePlan:'Безкоштовний план', premiumPlan:'Преміум', betaPlan:'Преміум (бета)',
       streak:n=>`🔥 ${n} дн. поспіль`,
       todayHeading:'Сьогодні', dayStartLabel:'Початок дня',
+      dayEndLabel:'Кінець дня',
+      settingsBtn:'Налаштування', settingsTitle:'Налаштування',
+      setProfileH:'Профіль', setNameLabel:"Ім'я", setAvatarPick:'Змінити фото',
+      setScheduleH:'Графік дня', setThemeH:'Оформлення',
+      settingsSave:'Зберегти', settingsClose:'Закрити',
+      settingsSaved:'Налаштування збережено.',
+      settingsLocalOnly:'Збережено на цьому пристрої. Хмара підхопить після оновлення бази.',
+      avatarTooBig:'Фото завелике. Спробуй інше зображення.',
+      restKicker:'Зараз час відпочинку. День почнеться через',
+      restAfter:'День завершено. Відпочинок до завтрашнього старту.',
       taskNamePlaceholder:'Назва завдання', addBtn:'Додати',
       catWork:'Робота', catPersonal:'Особисте', catHealth:"Здоров'я", catAgility:'Спритність/реакція', catHabit:'Звичка', catOther:'Інше',
       targetStatLabel:'Характеристика (опційно):', targetStatAuto:'Авто (за категорією)',
@@ -507,6 +585,16 @@
       freePlan:'Free plan', premiumPlan:'Premium', betaPlan:'Premium (beta)',
       streak:n=>`🔥 ${n}-day streak`,
       todayHeading:'Today', dayStartLabel:'Day starts at',
+      dayEndLabel:'Day ends at',
+      settingsBtn:'Settings', settingsTitle:'Settings',
+      setProfileH:'Profile', setNameLabel:'Name', setAvatarPick:'Change photo',
+      setScheduleH:'Day schedule', setThemeH:'Appearance',
+      settingsSave:'Save', settingsClose:'Close',
+      settingsSaved:'Settings saved.',
+      settingsLocalOnly:'Saved on this device. Cloud sync after the database update.',
+      avatarTooBig:'Photo is too large. Try another image.',
+      restKicker:'Rest time. The day starts in',
+      restAfter:'Day is over. Rest until tomorrow’s start.',
       taskNamePlaceholder:'Task name', addBtn:'Add',
       catWork:'Work', catPersonal:'Personal', catHealth:'Health', catAgility:'Agility/reaction', catHabit:'Habit', catOther:'Other',
       targetStatLabel:'Attribute (optional):', targetStatAuto:'Auto (by category)',
@@ -616,7 +704,8 @@
     document.getElementById('award-title').textContent = t('awardTitle');
     document.getElementById('award-close').textContent = t('awardClose');
 
-    const progressFn = (window.dayflowMap && window.dayflowMap.getStatProgress)
+    const progressFn = window.getStatProgress
+      || (window.dayflowMap && window.dayflowMap.getStatProgress)
       || function(m){ const n=Math.max(0,Number(m)||0); return { level:Math.floor(n/60), percent:Math.min(100,Math.round((n%60)/60*100)) }; };
 
     const weights = (task && task.statWeights) || {};
@@ -695,7 +784,7 @@
 
   let session = null;
   let premiumPollHandle = null;
-  let state = { dayStart:'09:00', tasks:[], premium:false, subscriptionStatus:'active' };
+  let state = { dayStart:'09:00', dayEnd:'23:00', displayName:'', avatarUrl:'', tasks:[], premium:false, subscriptionStatus:'active' };
   let editingId = null;
 
   // ---------- Аудіостимуляція: бінауральний ритм через Web Audio API ----------
@@ -824,11 +913,192 @@
   }
 
   async function loadDaySettings(){
-    const { data } = await sb.from('day_settings').select('day_start').eq('day', todayKey()).maybeSingle();
-    state.dayStart = data?.day_start || '09:00';
+    let { data, error } = await sb.from('day_settings').select('day_start, day_end').eq('day', todayKey()).maybeSingle();
+    if(error){
+      const retry = await sb.from('day_settings').select('day_start').eq('day', todayKey()).maybeSingle();
+      data = retry.data;
+    }
+    if(data){
+      state.dayStart = data.day_start || state.dayStart || '09:00';
+      if(data.day_end) state.dayEnd = data.day_end;
+    }
   }
   async function saveDaySettings(){
-    await sb.from('day_settings').upsert({ user_id: session.user.id, day: todayKey(), day_start: state.dayStart });
+    const row = { user_id: session.user.id, day: todayKey(), day_start: state.dayStart, day_end: state.dayEnd };
+    let { error } = await sb.from('day_settings').upsert(row);
+    if(error){
+      const { error: e2 } = await sb.from('day_settings').upsert({ user_id: session.user.id, day: todayKey(), day_start: state.dayStart });
+      if(e2) throw e2;
+      return 'local-end';
+    }
+    return 'ok';
+  }
+
+  function profileCacheKey(){ return 'dayflow:profile:' + (session?.user?.id || 'anon'); }
+  function readProfileCache(){
+    try{ return JSON.parse(localStorage.getItem(profileCacheKey()) || 'null'); }catch(e){ return null; }
+  }
+  function writeProfileCache(){
+    localStorage.setItem(profileCacheKey(), JSON.stringify({
+      displayName: state.displayName, avatarUrl: state.avatarUrl, dayStart: state.dayStart, dayEnd: state.dayEnd, theme: currentTheme
+    }));
+  }
+  async function loadProfile(){
+    const cached = readProfileCache();
+    if(cached){
+      state.displayName = cached.displayName || '';
+      state.avatarUrl = cached.avatarUrl || '';
+      if(cached.dayEnd) state.dayEnd = cached.dayEnd;
+      if(cached.theme != null && !localStorage.getItem('dayflow:theme')) applyTheme(cached.theme);
+    }
+    const { data, error } = await sb.from('profiles')
+      .select('display_name, avatar_url, day_end, theme')
+      .eq('id', session.user.id).maybeSingle();
+    if(error || !data){
+      const slim = await sb.from('profiles').select('display_name, avatar_url').eq('id', session.user.id).maybeSingle();
+      if(slim.data){
+        if(slim.data.display_name) state.displayName = slim.data.display_name;
+        if(slim.data.avatar_url) state.avatarUrl = slim.data.avatar_url;
+      }
+      return;
+    }
+    if(data.display_name) state.displayName = data.display_name;
+    if(data.avatar_url) state.avatarUrl = data.avatar_url;
+    if(data.day_end) state.dayEnd = data.day_end;
+    if(data.theme != null && data.theme !== currentTheme) applyTheme(data.theme || '');
+  }
+  async function saveProfile(){
+    writeProfileCache();
+    const payload = {
+      display_name: state.displayName || '',
+      avatar_url: state.avatarUrl || '',
+      day_end: state.dayEnd,
+      theme: currentTheme || ''
+    };
+    try{
+      const headers = { 'Content-Type':'application/json', ...(await authHeader()) };
+      const res = await fetch('/api/profile', { method:'PUT', headers, body: JSON.stringify(payload) });
+      if(res.ok) return 'ok';
+      const body = await res.json().catch(()=>({}));
+      if(body.errorType === 'schema_error') return 'local';
+    }catch(e){}
+    const { error } = await sb.from('profiles').update({
+      display_name: state.displayName || null,
+      avatar_url: state.avatarUrl || null,
+      day_end: state.dayEnd,
+      theme: currentTheme || null
+    }).eq('id', session.user.id);
+    if(error){
+      const { error: e2 } = await sb.from('profiles').update({
+        display_name: state.displayName || null,
+        avatar_url: state.avatarUrl || null
+      }).eq('id', session.user.id);
+      return e2 ? 'local' : 'partial';
+    }
+    return 'ok';
+  }
+
+  function renderUserbar(){
+    const img = document.getElementById('ub-avatar');
+    const nameEl = document.getElementById('ub-name');
+    if(state.avatarUrl){ img.src = state.avatarUrl; img.hidden = false; }
+    else { img.removeAttribute('src'); img.hidden = true; }
+    nameEl.textContent = state.displayName || '';
+  }
+
+  function parseHmOnDay(hm, base){
+    const [h,m] = String(hm || '00:00').split(':').map(Number);
+    const d = new Date(base.getTime());
+    d.setHours(h||0, m||0, 0, 0);
+    return d;
+  }
+  function restTarget(){
+    const now = new Date();
+    const start = parseHmOnDay(state.dayStart, now);
+    if(now < start) return { until: start, kind: 'before' };
+    const end = parseHmOnDay(state.dayEnd, now);
+    if(end > start && now >= end){
+      const next = parseHmOnDay(state.dayStart, now);
+      next.setDate(next.getDate() + 1);
+      return { until: next, kind: 'after' };
+    }
+    return null;
+  }
+  function fmtHMS(ms){
+    const s = Math.max(0, Math.floor(ms/1000));
+    return [Math.floor(s/3600), Math.floor((s%3600)/60), s%60].map(n=>String(n).padStart(2,'0')).join(':');
+  }
+  let restTimer = null;
+  function tickRest(){
+    const card = document.getElementById('rest-card');
+    const kicker = document.getElementById('rest-kicker');
+    const count = document.getElementById('rest-count');
+    if(!card) return;
+    const rest = restTarget();
+    if(!rest){
+      if(!card.hidden){
+        card.classList.add('out');
+        setTimeout(()=>{ card.hidden = true; card.classList.remove('out'); }, 280);
+      }
+      return;
+    }
+    card.classList.remove('out');
+    card.hidden = false;
+    kicker.textContent = rest.kind === 'after' ? t('restAfter') : t('restKicker');
+    count.textContent = fmtHMS(rest.until.getTime() - Date.now());
+  }
+  function startRestClock(){
+    tickRest();
+    if(!restTimer) restTimer = setInterval(tickRest, 1000);
+  }
+
+  function fillBoundsLabel(){
+    const el = document.getElementById('day-bounds-label');
+    if(el) el.textContent = (state.dayStart || '09:00') + ' – ' + (state.dayEnd || '23:00');
+  }
+
+  function showSettings(){
+    document.getElementById('settings-title').textContent = t('settingsTitle');
+    document.getElementById('set-profile-h').textContent = t('setProfileH');
+    document.getElementById('set-name-label').textContent = t('setNameLabel');
+    document.getElementById('btn-avatar-pick').textContent = t('setAvatarPick');
+    document.getElementById('set-schedule-h').textContent = t('setScheduleH');
+    document.getElementById('day-start-label').textContent = t('dayStartLabel');
+    document.getElementById('day-end-label').textContent = t('dayEndLabel');
+    document.getElementById('set-theme-h').textContent = t('setThemeH');
+    document.getElementById('settings-save').textContent = t('settingsSave');
+    document.getElementById('settings-close').textContent = t('settingsClose');
+    document.getElementById('set-display-name').value = state.displayName || '';
+    document.getElementById('day-start').value = state.dayStart || '09:00';
+    document.getElementById('day-end').value = state.dayEnd || '23:00';
+    const img = document.getElementById('set-avatar-img');
+    const ph = document.getElementById('set-avatar-ph');
+    if(state.avatarUrl){ img.src = state.avatarUrl; img.hidden = false; ph.hidden = true; }
+    else { img.hidden = true; ph.hidden = false; }
+    document.getElementById('settings-modal').classList.add('open');
+    document.getElementById('set-display-name').focus();
+  }
+  function hideSettings(){ document.getElementById('settings-modal').classList.remove('open'); }
+
+  function resizeAvatarFile(file){
+    return new Promise((resolve, reject)=>{
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = ()=>{
+        const size = 256;
+        const c = document.createElement('canvas');
+        c.width = size; c.height = size;
+        const ctx = c.getContext('2d');
+        const s = Math.min(img.width, img.height);
+        ctx.drawImage(img, (img.width-s)/2, (img.height-s)/2, s, s, 0, 0, size, size);
+        URL.revokeObjectURL(url);
+        const data = c.toDataURL('image/jpeg', 0.8);
+        if(data.length > 180000) reject(new Error('too-big'));
+        else resolve(data);
+      };
+      img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error('bad-image')); };
+      img.src = url;
+    });
   }
   async function loadTasks(){
     const { data } = await sb.from('tasks').select('*').eq('day', todayKey()).order('position', {ascending:true});
@@ -1116,6 +1386,9 @@
     document.getElementById('app-tagline').textContent = t('tagline');
     document.getElementById('today-heading').textContent = t('todayHeading');
     document.getElementById('day-start-label').textContent = t('dayStartLabel');
+    document.getElementById('btn-settings').title = t('settingsBtn');
+    fillBoundsLabel();
+    renderUserbar();
     document.getElementById('task-name').placeholder = t('taskNamePlaceholder');
     document.getElementById('btn-add').textContent = t('addBtn');
     document.getElementById('templates-heading').textContent = t('templatesHeading');
@@ -1135,7 +1408,11 @@
     document.getElementById('btn-subscribe').textContent = t('subscribeBtn');
     document.getElementById('btn-manage').textContent = t('manageSubBtn');
     document.getElementById('btn-logout').textContent = t('logout');
+    document.getElementById('btn-settings').title = t('settingsBtn');
+    document.getElementById('btn-settings').setAttribute('aria-label', t('settingsBtn'));
     document.getElementById('user-email-display').textContent = session?.user?.email || '';
+    renderUserbar();
+    fillBoundsLabel();
 
     document.querySelectorAll('.preset').forEach(btn=>{ btn.textContent = t('presetLabel')(btn.dataset.min); });
     document.getElementById('lang-uk').classList.toggle('active', lang==='uk');
@@ -1404,7 +1681,14 @@
     await renderWeekly(); await renderHistory(); await renderStreak();
   });
 
-  document.getElementById('day-start').addEventListener('change', async (e)=>{ state.dayStart=e.target.value; await saveDaySettings(); await renderAll(); });
+  document.getElementById('day-start').addEventListener('change', ()=>{
+    state.dayStart = document.getElementById('day-start').value;
+    fillBoundsLabel(); startRestClock();
+  });
+  document.getElementById('day-end').addEventListener('change', ()=>{
+    state.dayEnd = document.getElementById('day-end').value;
+    fillBoundsLabel(); startRestClock();
+  });
 
   // Гарячі клавіші: Enter у полі назви — додати завдання; Space (поза полями вводу) — почати/завершити.
   document.getElementById('task-name').addEventListener('input', ()=>{
@@ -1423,6 +1707,49 @@
   });
   document.getElementById('award-modal').addEventListener('click', (e)=>{
     if(e.target.id === 'award-modal') document.getElementById('award-close').click();
+  });
+
+  document.getElementById('btn-settings').addEventListener('click', showSettings);
+  document.getElementById('settings-close').addEventListener('click', hideSettings);
+  document.getElementById('settings-modal').addEventListener('click', (e)=>{
+    if(e.target.id === 'settings-modal') hideSettings();
+  });
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape' && document.getElementById('settings-modal').classList.contains('open')){
+      hideSettings();
+    }
+  });
+  document.getElementById('btn-avatar-pick').addEventListener('click', ()=> document.getElementById('set-avatar-file').click());
+  document.getElementById('set-avatar-file').addEventListener('change', async (e)=>{
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if(!file) return;
+    try{
+      const data = await resizeAvatarFile(file);
+      state.avatarUrl = data;
+      const img = document.getElementById('set-avatar-img');
+      img.src = data; img.hidden = false;
+      document.getElementById('set-avatar-ph').hidden = true;
+    }catch(err){
+      showToast(t('avatarTooBig'));
+    }
+  });
+  document.getElementById('settings-save').addEventListener('click', async ()=>{
+    state.displayName = document.getElementById('set-display-name').value.trim();
+    state.dayStart = document.getElementById('day-start').value || '09:00';
+    state.dayEnd = document.getElementById('day-end').value || '23:00';
+    fillBoundsLabel(); renderUserbar(); startRestClock();
+    try{
+      await saveDaySettings();
+      const cloud = await saveProfile();
+      hideSettings();
+      showToast(cloud === 'ok' ? t('settingsSaved') : t('settingsLocalOnly'));
+      await renderAll();
+    }catch(err){
+      writeProfileCache();
+      hideSettings();
+      showToast(t('settingsLocalOnly'));
+    }
   });
   document.addEventListener('keydown', (e)=>{
     const tag = (document.activeElement && document.activeElement.tagName || '').toLowerCase();
@@ -1598,12 +1925,15 @@
     document.getElementById('app-root').style.display = 'block';
     document.getElementById('side-nav').style.display = ''; // хай CSS media query вирішує, показувати чи ні
 
+    await loadProfile();
     await loadDaySettings();
     await loadTasks();
     await fetchPremium();
     document.getElementById('day-start').value = state.dayStart;
+    document.getElementById('day-end').value = state.dayEnd;
 
     applyStaticText();
+    startRestClock();
 
     const params = new URLSearchParams(window.location.search);
     if(params.get('upgraded')==='1'){

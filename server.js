@@ -39,7 +39,7 @@ app.use(helmet({
 // CORS обмежений конкретним доменом застосунку — ніякого wildcard '*'.
 app.use(cors({
   origin: process.env.APP_URL,
-  methods: ['GET', 'POST', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
@@ -124,7 +124,7 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, 
   res.json({ received: true });
 });
 
-app.use(express.json());
+app.use(express.json({ limit: '300kb' }));
 
 // ---------- Health-check (для моніторингу хостингу) ----------
 app.get('/api/health', (req, res) => {
@@ -189,6 +189,48 @@ async function requireAuth(req, res, next) {
     return res.status(401).json({ error: 'Помилка перевірки токена', errorType: 'auth_error' });
   }
 }
+
+// Профіль (ім'я, аватар, межі дня, тема). Пише service_role — клієнтський UPDATE
+// на profiles навмисно заборонений RLS (premium). Колонки з міграції 010;
+// якщо їх ще немає, повертаємо schema_error, фронт тримає локальний кеш.
+const ALLOWED_THEMES = new Set(['', 'techno', 'steampunk']);
+app.put('/api/profile', requireAuth, async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const patch = { updated_at: new Date().toISOString() };
+    if (typeof body.display_name === 'string') {
+      const n = body.display_name.trim().slice(0, 40);
+      patch.display_name = n || null;
+    }
+    if (typeof body.avatar_url === 'string') {
+      const a = body.avatar_url;
+      if (a && a.length > 200000) {
+        return res.status(400).json({ error: 'Аватар завеликий', errorType: 'validation_error' });
+      }
+      if (a && !(a.startsWith('data:image/') || a.startsWith('https://'))) {
+        return res.status(400).json({ error: 'Некоректний аватар', errorType: 'validation_error' });
+      }
+      patch.avatar_url = a || null;
+    }
+    if (typeof body.day_end === 'string' && /^\d{2}:\d{2}/.test(body.day_end)) {
+      patch.day_end = body.day_end.slice(0, 5);
+    }
+    if (typeof body.theme === 'string' && ALLOWED_THEMES.has(body.theme)) {
+      patch.theme = body.theme || null;
+    }
+    const { error } = await supabaseAdmin.from('profiles').update(patch).eq('id', req.user.id);
+    if (error) {
+      const missing = /column|does not exist|schema cache/i.test(error.message || '');
+      return res.status(missing ? 409 : 400).json({
+        error: error.message,
+        errorType: missing ? 'schema_error' : 'validation_error'
+      });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // Rate-limit на створення checkout-сесії
 const checkoutLimiter = rateLimit({

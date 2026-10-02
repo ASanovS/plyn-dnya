@@ -1,7 +1,7 @@
 // sw.js
 importScripts('/idb-queue.js');
 
-const SHELL_CACHE = 'plyn-dnya-shell-v4';
+const SHELL_CACHE = 'plyn-dnya-shell-v5';
 const DATA_CACHE = 'plyn-dnya-data-v1';
 const SHELL_ASSETS = [
   '/',
